@@ -1,0 +1,105 @@
+# =====================================================================
+# Repositorio Integral Skylearn - .gitignore Maestro
+# Abarca: Monorepo Root, Backend (NestJS), Frontend Web (React Vite),
+#         Frontend Mobile (Expo React Native) y Documentación SDD
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Dependencias
+# ---------------------------------------------------------------------
+node_modules/
+*/node_modules/
+*/*/node_modules/
+package-lock.json.backup
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ---------------------------------------------------------------------
+# Variables de Entorno y Secretos (Seguridad)
+# ---------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.env
+*.env.production
+*.env.development
+# Permitir siempre archivos de plantilla .env.example
+!.env.example
+!*/.env.example
+!*/*/.env.example
+
+# ---------------------------------------------------------------------
+# Compilación y Salidas de Build
+# ---------------------------------------------------------------------
+dist/
+*/dist/
+dist-ssr/
+build/
+web-build/
+out/
+.next/
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------
+# Backend (NestJS + Prisma + Vitest)
+# ---------------------------------------------------------------------
+backend/src/generated/prisma/
+backend/dist/
+coverage/
+.nyc_output/
+
+# ---------------------------------------------------------------------
+# Frontend Mobile (Expo & React Native)
+# ---------------------------------------------------------------------
+.expo/
+frontend-mobile/.expo/
+frontend-mobile/web-build/
+frontend-mobile/expo-env.d.ts
+frontend-mobile/ios/
+frontend-mobile/android/
+.kotlin/
+.metro-health-check*
+
+# Certificados y firmas nativas móviles
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# ---------------------------------------------------------------------
+# Logs y Archivos Temporales de Runtime
+# ---------------------------------------------------------------------
+logs/
+*.log
+*.tmp
+*.temp
+
+# ---------------------------------------------------------------------
+# Editores y Entornos de Desarrollo
+# ---------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+
+# ---------------------------------------------------------------------
+# Archivos del Sistema Operativo
+# ---------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -1,0 +1,18 @@
+{
+  "name": "skylearn-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma Educativa Adaptativa Skylearn (Backend NestJS + Web React + Mobile Expo)",
+  "scripts": {
+    "setup": "npm --prefix backend install && npm --prefix frontend-web install && npm --prefix frontend-mobile install && npm run db:setup",
+    "db:setup": "npm --prefix backend run db:setup",
+    "db:seed": "npm --prefix backend run db:seed",
+    "start:dev": "npm --prefix backend run start:dev",
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:web": "npm --prefix frontend-web run dev",
+    "dev:mobile": "npm --prefix frontend-mobile run start",
+    "test:backend": "npm --prefix backend run test:e2e",
+    "build:backend": "npm --prefix backend run build",
+    "build:web": "npm --prefix frontend-web run build"
+  }
+}

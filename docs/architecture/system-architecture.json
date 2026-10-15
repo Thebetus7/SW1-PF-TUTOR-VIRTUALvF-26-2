@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitectura Integral Skylearn: Frontend Web y Backend API",
+    "output": "docs/architecture/system-architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "student",
+      "type": "frontend",
+      "label": "Portal Estudiante",
+      "sublabel": "React 19 :5173",
+      "pos": [40, 160],
+      "size": [160, 64],
+      "tag": "Skylearn UI"
+    },
+    {
+      "id": "teacher",
+      "type": "frontend",
+      "label": "Panel Curricular",
+      "sublabel": "TeacherCourseManager",
+      "pos": [40, 280],
+      "size": [160, 64],
+      "tag": "Cursos & Temarios"
+    },
+    {
+      "id": "tutor_avatar",
+      "type": "frontend",
+      "label": "Tutor Virtual 3D",
+      "sublabel": "Three.js + Visemas",
+      "pos": [40, 400],
+      "size": [160, 64],
+      "tag": "Voz & Canvas 3D"
+    },
+    {
+      "id": "youtube_api",
+      "type": "external",
+      "label": "YouTube Streaming",
+      "sublabel": "IFrame Player API",
+      "pos": [40, 520],
+      "size": [160, 64],
+      "tag": "Video Clases"
+    },
+    {
+      "id": "hash_router",
+      "type": "frontend",
+      "label": "Router & API Client",
+      "sublabel": "window.history + Axios",
+      "pos": [280, 280],
+      "size": [160, 64],
+      "tag": "Bearer JWT Interceptor"
+    },
+    {
+      "id": "auth_guard",
+      "type": "security",
+      "label": "Auth & RBAC Guards",
+      "sublabel": "Passport JWT + Roles",
+      "pos": [580, 130],
+      "size": [160, 64],
+      "tag": "STUDENT/TEACHER"
+    },
+    {
+      "id": "api_gateway",
+      "type": "backend",
+      "label": "NestJS API Core",
+      "sublabel": "Express :3000 /api/v1",
+      "pos": [580, 280],
+      "size": [160, 64],
+      "tag": "RFC 7807 + Swagger"
+    },
+    {
+      "id": "courses_mod",
+      "type": "backend",
+      "label": "Courses & Modules",
+      "sublabel": "CoursesService",
+      "pos": [840, 160],
+      "size": [160, 60],
+      "tag": "Selector 3D + Enroll"
+    },
+    {
+      "id": "lessons_mod",
+      "type": "backend",
+      "label": "Lessons & Unlocks",
+      "sublabel": "LessonsService",
+      "pos": [840, 250],
+      "size": [160, 60],
+      "tag": "3 Créditos Freemium"
+    },
+    {
+      "id": "exams_mod",
+      "type": "backend",
+      "label": "Exams & Tutor Engine",
+      "sublabel": "Exams & TutorService",
+      "pos": [840, 340],
+      "size": [160, 60],
+      "tag": "Umbral 70% + Visemas"
+    },
+    {
+      "id": "payments_mod",
+      "type": "backend",
+      "label": "Payments & Stripe",
+      "sublabel": "PaymentsService",
+      "pos": [840, 430],
+      "size": [160, 60],
+      "tag": "Stripe Dev 4242"
+    },
+    {
+      "id": "prisma_orm",
+      "type": "database",
+      "label": "Prisma ORM",
+      "sublabel": "Schema & Transactions",
+      "pos": [1140, 200],
+      "size": [160, 64],
+      "tag": "Anti-huérfanos"
+    },
+    {
+      "id": "gemini_ai",
+      "type": "cloud",
+      "label": "Google Gemini AI",
+      "sublabel": "gemini-2.5-flash",
+      "pos": [1140, 340],
+      "size": [160, 64],
+      "tag": "Cascade Fallback"
+    },
+    {
+      "id": "stripe_cloud",
+      "type": "cloud",
+      "label": "Stripe Platform",
+      "sublabel": "Checkout & Webhooks",
+      "pos": [1140, 430],
+      "size": [160, 64],
+      "tag": "HMAC-SHA256"
+    },
+    {
+      "id": "postgres_db",
+      "type": "database",
+      "label": "PostgreSQL 15+",
+      "sublabel": "skylearn_db :5432",
+      "pos": [1400, 200],
+      "size": [160, 64],
+      "tag": "Cascade / Restrict"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Frontend Web (React 19 + TypeScript + Vite :5173)",
+      "wraps": ["student", "teacher", "tutor_avatar", "youtube_api", "hash_router"]
+    },
+    {
+      "kind": "region",
+      "label": "Backend Core API (NestJS 11 + Prisma :3000)",
+      "wraps": ["api_gateway", "auth_guard", "courses_mod", "lessons_mod", "exams_mod", "payments_mod", "prisma_orm"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Persistencia de Datos",
+      "wraps": ["prisma_orm", "postgres_db"]
+    }
+  ],
+  "connections": [
+    { "id": "student-to-router", "from": "student", "to": "hash_router", "label": "Catálogo", "variant": "emphasis" },
+    { "id": "teacher-to-router", "from": "teacher", "to": "hash_router", "label": "Gestión" },
+    { "id": "tutor-to-router", "from": "tutor_avatar", "to": "hash_router", "label": "Diálogos" },
+    { "id": "student-to-youtube", "from": "student", "to": "youtube_api", "label": "Video IFrame", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "router-to-gateway", "from": "hash_router", "to": "api_gateway", "label": "REST JSON", "variant": "emphasis" },
+    { "id": "gateway-to-auth", "from": "api_gateway", "to": "auth_guard", "label": "RBAC", "variant": "security", "fromSide": "top", "toSide": "bottom" },
+    { "id": "gateway-to-courses", "from": "api_gateway", "to": "courses_mod", "label": "/courses" },
+    { "id": "gateway-to-lessons", "from": "api_gateway", "to": "lessons_mod", "label": "/lessons" },
+    { "id": "gateway-to-exams", "from": "api_gateway", "to": "exams_mod", "label": "/exams" },
+    { "id": "gateway-to-payments", "from": "api_gateway", "to": "payments_mod", "label": "/payments" },
+    { "id": "courses-to-prisma", "from": "courses_mod", "to": "prisma_orm" },
+    { "id": "lessons-to-prisma", "from": "lessons_mod", "to": "prisma_orm" },
+    { "id": "exams-to-gemini", "from": "exams_mod", "to": "gemini_ai", "label": "IA Flash", "variant": "emphasis" },
+    { "id": "payments-to-stripe", "from": "payments_mod", "to": "stripe_cloud", "label": "Stripe API", "variant": "emphasis" },
+    { "id": "prisma-to-postgres", "from": "prisma_orm", "to": "postgres_db", "label": "SQL Pool", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Frontend Web (React 19 + Vite)",
+      "items": [
+        "Sistema de diseño Skylearn accesible con Atkinson Hyperlegible y Hubot Sans",
+        "Hash Router reactivo sincronizado con window.history para navegación fluida",
+        "Tutor Virtual 3D interactivo en Three.js con sincronización de visemas y voz"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Backend API (NestJS + Prisma)",
+      "items": [
+        "Arquitectura modular con filtros globales RFC 7807 y guards JWT",
+        "Control freemium con 3 créditos iniciales y desbloqueo permanente",
+        "Garantía de integridad: selector tridimensional y políticas antihuérfanos"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Integraciones de Inteligencia Artificial & Pasarela",
+      "items": [
+        "Google Gemini API con modelos vigentes (2.5 Flash) y fallback determinista",
+        "Pasarela Stripe en Developer Mode con tarjeta 4242 y webhooks HMAC-SHA256",
+        "Documentación OpenAPI interactiva disponible en /api/docs"
+      ]
+    }
+  ]
+}

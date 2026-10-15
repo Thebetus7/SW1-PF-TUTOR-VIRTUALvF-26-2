@@ -1,0 +1,156 @@
+/* frontend-web/src/index.css - Skylearn Design System Tokens */
+:root {
+  /* Primary Palette */
+  --color-sky: #3B82F6;
+  --color-sky-bright: #60A5FA;
+  --color-sky-deep: #1D4ED8;
+  --color-sky-soft: #DBEAFE;
+
+  /* Feedback & Accent Palette */
+  --color-sun: #FBBF24;
+  --color-sun-bright: #FCD34D;
+  --color-sun-deep: #D97706;
+  --color-leaf: #22C55E;
+  --color-leaf-soft: #DCFCE7;
+  --color-leaf-deep: #16A34A;
+  --color-coral: #F87171;
+  --color-coral-soft: #FEE2E2;
+  --color-berry: #A855F7;
+
+  /* Surfaces & Neutrals */
+  --color-bg: #FFFFFF;
+  --color-surface: #F8FAFC;
+  --color-surface-elevated: #FFFFFF;
+  --color-surface-sunken: #F1F5F9;
+
+  /* Typography & Lines */
+  --color-ink: #0F172A;
+  --color-ink-muted: #475569;
+  --color-ink-subtle: #94A3B8;
+  --color-ink-faint: #CBD5E1;
+  --color-outline: #E2E8F0;
+  --color-outline-strong: #94A3B8;
+
+  /* Typography Families */
+  --font-display: 'Nunito', sans-serif;
+  --font-body: 'Atkinson Hyperlegible', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Radii */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 16px rgba(15, 23, 42, 0.05);
+  --shadow-hover: 0 12px 28px rgba(15, 23, 42, 0.08);
+  --shadow-modal: 0 24px 48px rgba(15, 23, 42, 0.12);
+  --shadow-sky: 0 8px 24px rgba(59, 130, 246, 0.2);
+  --shadow-sun: 0 0 24px rgba(252, 211, 77, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+input, textarea, select {
+  font-family: var(--font-body);
+}
+
+/* Skylearn Component Utilities */
+.skylearn-card {
+  background: var(--color-surface-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-outline);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.skylearn-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+
+.btn-big-friendly {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  font-size: 18px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  background-color: var(--color-sky);
+  color: white;
+  box-shadow: var(--shadow-sky);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-big-friendly:hover {
+  background-color: var(--color-sky-bright);
+  transform: scale(1.02);
+}
+
+.btn-big-friendly:active {
+  background-color: var(--color-sky-deep);
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-outline);
+  padding: 12px 24px;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-sky-soft);
+  color: var(--color-sky-deep);
+  border-color: var(--color-sky-bright);
+}
+
+.star-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background-color: #FEF3C7;
+  color: var(--color-sun-deep);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 15px;
+  border: 1px solid var(--color-sun);
+}

@@ -1,0 +1,274 @@
+// backend/prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  ACTIVE
+  CANCELLED
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+}
+
+model User {
+  id                      String                  @id @default(uuid())
+  email                   String                  @unique
+  passwordHash            String
+  name                    String
+  role                    Role                    @default(STUDENT)
+  pushToken               String?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  creditAccount           CreditAccount?
+  subscription            Subscription?
+  coursesCreated          Course[]                @relation("TeacherCourses")
+  enrollments             Enrollment[]
+  lessonUnlocks           LessonUnlock[]
+  lessonProgresses        LessonProgress[]
+  examAttempts            ExamAttempt[]
+  learningPaths           LearningPath[]
+  tutorEvaluationResults  TutorEvaluationResult[]
+}
+
+model CreditAccount {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Int      @default(3)
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String             @unique
+  status               SubscriptionStatus @default(INACTIVE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model CourseCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  courses     Course[]
+}
+
+model Course {
+  id          String          @id @default(uuid())
+  teacherId   String
+  categoryId  String?
+  title       String
+  description String
+  status      CourseStatus    @default(DRAFT)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  teacher     User            @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Restrict)
+  category    CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  modules     Module[]
+  enrollments Enrollment[]
+
+  @@index([teacherId])
+  @@index([categoryId])
+}
+
+model Module {
+  id        String   @id @default(uuid())
+  courseId  String
+  title     String
+  order     Int
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+  exams     Exam[]
+
+  @@index([courseId, order])
+}
+
+model Lesson {
+  id              String           @id @default(uuid())
+  moduleId        String
+  title           String
+  videoUrl        String           // YouTube URL validada por regex
+  contextText     String           @db.Text // Variable de contexto del video que nutre al tutor y formularios
+  downloadableUrl String?
+  order           Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  module          Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  lessonUnlocks   LessonUnlock[]
+  progresses      LessonProgress[]
+  exams           Exam[]
+
+  @@index([moduleId, order])
+}
+
+model LessonUnlock {
+  id         String   @id @default(uuid())
+  userId     String
+  lessonId   String
+  unlockedAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson     Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+model LessonProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  lessonId    String
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+model Exam {
+  id          String        @id @default(uuid())
+  moduleId    String?
+  lessonId    String?
+  title       String
+  passScore   Float         @default(70.0)
+
+  module      Module?       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  lesson      Lesson?       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  attempts    ExamAttempt[]
+}
+
+model Question {
+  id             String          @id @default(uuid())
+  examId         String
+  text           String
+  points         Float           @default(1.0)
+  type           QuestionType    @default(SINGLE_CHOICE)
+
+  exam           Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  options        Option[]
+  attemptAnswers AttemptAnswer[]
+}
+
+model Option {
+  id             String          @id @default(uuid())
+  questionId     String
+  text           String
+  isCorrect      Boolean         @default(false)
+
+  question       Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attemptAnswers AttemptAnswer[]
+}
+
+model ExamAttempt {
+  id         String          @id @default(uuid())
+  userId     String
+  examId     String
+  score      Float
+  isPassed   Boolean
+  aiFeedback String?
+  createdAt  DateTime        @default(now())
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  exam       Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers    AttemptAnswer[]
+
+  @@index([userId, examId])
+}
+
+model AttemptAnswer {
+  id               String      @id @default(uuid())
+  attemptId        String
+  questionId       String
+  selectedOptionId String
+
+  attempt          ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question         Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption   Option      @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+}
+
+model LearningPath {
+  id        String     @id @default(uuid())
+  userId    String
+  title     String     @default("Ruta de Aprendizaje Adaptativa")
+  createdAt DateTime   @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nodes     PathNode[]
+}
+
+model PathNode {
+  id             String       @id @default(uuid())
+  learningPathId String
+  moduleId       String?
+  lessonId       String?
+  order          Int
+  reason         String
+
+  learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+
+  @@index([learningPathId, order])
+}
+
+model TutorEvaluationResult {
+  id                String      @id @default(uuid())
+  userId            String
+  lessonId          String
+  totalQuestions    Int
+  correctAnswers    Int
+  scorePercentage   Float
+  strengths         String[]
+  weaknesses        String[]
+  feedbackMessage   String
+  recommendedAction Json
+  createdAt         DateTime    @default(now())
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model Enrollment {
+  id         String   @id @default(uuid())
+  userId     String
+  courseId   String
+  enrolledAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, courseId])
+}
+
+model ProcessedWebhookEvent {
+  id          String   @id // Stripe event id
+  processedAt DateTime @default(now())
+}
