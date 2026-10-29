@@ -46,6 +46,7 @@ export interface FinalEvaluationSummary {
   totalQuestions?: number;
   closingRemarks: string;
   attemptId?: string;
+  isSimulation?: boolean;
 }
 
 export interface TestConnectionResponse {
@@ -76,15 +77,11 @@ export interface AnswerModuleEvaluationResponse {
   visemes: VisemeFrame[];
   avatarEmotion: AvatarPoseType;
   hasNextLesson: boolean;
+  isSimulation?: boolean;
   nextQuestion?: {
     lessonIndex: number;
     lessonTitle: string;
     questionText: string;
   };
-  finalSummary?: {
-    approved: boolean;
-    scorePercentage: number;
-    closingRemarks: string;
-    attemptId?: string;
-  };
+  finalSummary?: FinalEvaluationSummary;
 }

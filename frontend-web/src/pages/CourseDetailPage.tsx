@@ -11,6 +11,11 @@ import {
   Sparkles,
   Bot,
   Info,
+  Settings,
+  Eye,
+  AlertTriangle,
+  X,
+  PlusCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CollectedContextModal } from '../components/CollectedContextModal';
@@ -38,6 +43,7 @@ interface CourseDetail {
   description: string;
   category: string;
   teacherName: string;
+  teacherId?: string;
   isEnrolled: boolean;
   modules: Module[];
 }
@@ -49,15 +55,20 @@ interface CourseDetailPageProps {
   onBack: () => void;
 }
 
-export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack }: CourseDetailPageProps) {
+export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: CourseDetailPageProps) {
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // Estados para la Evaluación con Docente Virtual y Auditoría
   const [selectedModuleForEvaluation, setSelectedModuleForEvaluation] = useState<Module | null>(null);
   const [selectedModuleForContext, setSelectedModuleForContext] = useState<ModuleEvaluationContext | null>(null);
+
+  const isTeacher = user?.role === 'TEACHER';
+  const isAuthor = isTeacher && Boolean(course?.teacherId && course.teacherId === user?.id);
+  const totalCourseLessons = course?.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
 
   useEffect(() => {
     loadCourseDetail();
@@ -78,7 +89,16 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
   };
 
   const handleEnroll = async () => {
+    if (totalCourseLessons === 0) {
+      setNotification({
+        type: 'info',
+        message: 'Este curso se encuentra en preparación pedagógica y aún no tiene clases disponibles para cursar.',
+      });
+      return;
+    }
+
     setIsEnrolling(true);
+    setNotification(null);
     try {
       await api.post(`/courses/${courseId}/enroll`);
       confetti({
@@ -86,10 +106,17 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
         spread: 70,
         origin: { y: 0.6 },
       });
+      setNotification({
+        type: 'success',
+        message: '¡Te has inscrito exitosamente en el curso! Todas las clases del temario han quedado desbloqueadas.',
+      });
       await loadCourseDetail();
     } catch (err: any) {
       console.error('Error al inscribirse en el curso:', err);
-      alert(err.response?.data?.message || 'Hubo un error al inscribirte en el curso.');
+      setNotification({
+        type: 'error',
+        message: err.response?.data?.message || 'Hubo un error al inscribirte en el curso. Por favor intenta nuevamente.',
+      });
     } finally {
       setIsEnrolling(false);
     }
@@ -141,6 +168,48 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
 
   return (
     <div style={styles.container}>
+      {/* Notificación Accesible Flotante (Reemplazo de window.alert) */}
+      {notification && (
+        <div
+          style={{
+            ...styles.notificationBanner,
+            backgroundColor:
+              notification.type === 'success'
+                ? '#DEF7EC'
+                : notification.type === 'error'
+                ? '#FDE8E8'
+                : '#E1EFFE',
+            borderColor:
+              notification.type === 'success'
+                ? '#31C48D'
+                : notification.type === 'error'
+                ? '#F98080'
+                : '#76A9FA',
+            color:
+              notification.type === 'success'
+                ? '#046C4E'
+                : notification.type === 'error'
+                ? '#9B1C1C'
+                : '#1E429F',
+          }}
+          role="alert"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {notification.type === 'success' && <CheckCircle2 size={18} color="#046C4E" />}
+            {notification.type === 'error' && <AlertTriangle size={18} color="#9B1C1C" />}
+            {notification.type === 'info' && <Info size={18} color="#1E429F" />}
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>{notification.message}</span>
+          </div>
+          <button
+            onClick={() => setNotification(null)}
+            style={styles.closeNotificationBtn}
+            aria-label="Cerrar notificación"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Botón Volver */}
       <button onClick={onBack} style={styles.backBtn}>
         <ArrowLeft size={18} />
@@ -172,20 +241,72 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
           </div>
         </div>
 
-        {/* Estado de Inscripción / Botón Inscribirse */}
-        {!course.isEnrolled ? (
+        {/* Adaptación de Cabecera por Rol (HU-01) */}
+        {isTeacher ? (
+          /* MODO DOCENTE: Banner de Creador / Supervisión con Enlace al Panel */
+          <div style={styles.teacherBannerBox}>
+            <div style={styles.teacherBannerContent}>
+              <div style={styles.teacherBadge}>
+                <Sparkles size={16} color="#0A58CA" />
+                <span>{isAuthor ? 'Modo Docente Creador • Autor del Curso' : 'Modo Docente • Vista de Supervisión'}</span>
+              </div>
+              <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#4B5563' }}>
+                {isAuthor
+                  ? 'Tienes acceso irrestricto a todas las lecciones sin candados ni necesidad de inscripción.'
+                  : 'Como docente puedes previsualizar los contenidos y simular las interacciones del Tutor Virtual.'}
+              </p>
+            </div>
+            {isAuthor && (
+              <button
+                onClick={() => {
+                  window.location.hash = `#/teacher/courses/${course.id}`;
+                }}
+                className="btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 20px',
+                  fontSize: '14px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Settings size={16} />
+                <span>Gestionar en Panel Curricular</span>
+              </button>
+            )}
+          </div>
+        ) : !course.isEnrolled ? (
+          /* MODO ESTUDIANTE NO INSCRITO: CTA de Inscripción con Validación de Cero-State */
           <div style={styles.enrollCtaBox}>
             <div style={styles.enrollCtaText}>
               <Sparkles size={20} color="var(--color-sun)" />
               <span style={{ fontSize: '14px', color: 'var(--color-ink)' }}>
-                Inscríbete gratis para acceder a las clases interactivas y registrar tu progreso.
+                {totalCourseLessons > 0
+                  ? 'Inscríbete gratis para acceder a las clases interactivas y registrar tu progreso.'
+                  : 'Este curso está en preparación pedagógica. Pronto estarán disponibles las lecciones.'}
               </span>
             </div>
-            <button onClick={handleEnroll} disabled={isEnrolling} className="btn-primary" style={{ padding: '10px 24px' }}>
-              {isEnrolling ? 'Inscribiendo...' : 'Inscribirme al Curso'}
+            <button
+              onClick={handleEnroll}
+              disabled={isEnrolling || totalCourseLessons === 0}
+              className="btn-primary"
+              style={{
+                padding: '10px 24px',
+                opacity: totalCourseLessons === 0 ? 0.6 : 1,
+                cursor: totalCourseLessons === 0 ? 'not-allowed' : 'pointer',
+              }}
+              title={totalCourseLessons === 0 ? 'Curso en preparación pedagógica' : 'Inscribirme al curso'}
+            >
+              {isEnrolling
+                ? 'Inscribiendo...'
+                : totalCourseLessons === 0
+                ? 'En Preparación'
+                : 'Inscribirme al Curso'}
             </button>
           </div>
         ) : (
+          /* MODO ESTUDIANTE INSCRITO: Notificación de Membresía Activa */
           <div style={styles.enrolledNotice}>
             <CheckCircle2 size={20} color="#046C4E" />
             <span style={{ fontWeight: 600, color: '#046C4E' }}>
@@ -200,10 +321,40 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
         <h2 style={styles.curriculumTitle}>Temario del Curso</h2>
 
         {course.modules?.length === 0 ? (
-          <div className="skylearn-card" style={{ padding: '32px', textAlign: 'center' }}>
-            <p style={{ color: 'var(--color-ink-muted)', fontSize: '16px' }}>
-              Este curso aún no tiene lecciones publicadas por el profesor.
-            </p>
+          /* Zero-State: Curso sin Módulos (RB-04) */
+          <div className="skylearn-card" style={styles.emptyStateCard}>
+            <div style={styles.emptyStateIconBox}>
+              <PlusCircle size={32} color="#2563EB" />
+            </div>
+            {isTeacher ? (
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px 0', color: '#1F2937' }}>
+                  Tu curso aún no tiene módulos ni lecciones
+                </h3>
+                <p style={{ color: '#4B5563', fontSize: '14px', maxWidth: '500px', margin: '0 auto 16px auto' }}>
+                  Comienza a estructurar el temario pedagógico, añade lecciones con enlaces de YouTube y configura preguntas interactivas.
+                </p>
+                <button
+                  onClick={() => {
+                    window.location.hash = `#/teacher/courses/${course.id}`;
+                  }}
+                  className="btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 22px' }}
+                >
+                  <PlusCircle size={16} />
+                  <span>Crear Primer Módulo</span>
+                </button>
+              </div>
+            ) : (
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px 0', color: '#1F2937' }}>
+                  Curso en preparación pedagógica
+                </h3>
+                <p style={{ color: '#4B5563', fontSize: '14px', maxWidth: '500px', margin: '0 auto' }}>
+                  El profesor está preparando los módulos y contenidos interactivos de este curso. Vuelve pronto para comenzar tu aprendizaje.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           course.modules.map((mod, idx) => (
@@ -225,21 +376,55 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
                     </div>
 
                     <div>
-                      {course.isEnrolled ? (
+                      {isTeacher ? (
+                        /* DOCENTE: Previsualización universal sin candados (RB-02 & Escenario 1) */
+                        <button
+                          className="btn-secondary"
+                          onClick={() => onSelectLesson(lesson)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 16px',
+                            fontSize: '14px',
+                            borderColor: '#2563EB',
+                            color: '#2563EB',
+                          }}
+                          title="Previsualizar esta clase como docente"
+                        >
+                          <Eye size={17} />
+                          <span>Previsualizar Lección</span>
+                        </button>
+                      ) : course.isEnrolled ? (
+                        /* ALUMNO INSCRITO: Comenzar lección */
                         <button
                           className="btn-primary"
                           onClick={() => onSelectLesson(lesson)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '14px' }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 16px',
+                            fontSize: '14px',
+                          }}
                         >
                           <PlayCircle size={18} />
                           <span>Comenzar Lección</span>
                         </button>
                       ) : (
+                        /* ALUMNO NO INSCRITO: Candado visual explicativo */
                         <button
                           className="btn-secondary"
                           onClick={handleEnroll}
                           title="Inscríbete en el curso para abrir esta lección"
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '13px', opacity: 0.85 }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 14px',
+                            fontSize: '13px',
+                            opacity: 0.85,
+                          }}
                         >
                           <Lock size={15} />
                           <span>Inscríbete para ver</span>
@@ -249,19 +434,38 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
                   </div>
                 ))}
 
-                {/* FILA ESPECIAL FINAL: Evaluación Práctica con Docente Virtual (HU-01 & RF-01.1 & RF-01.2) */}
+                {/* FILA ESPECIAL FINAL: Tutor Virtual (Modo Adaptativo por Rol) */}
                 <div style={styles.tutorEvalRow}>
                   <div style={styles.tutorEvalInfo}>
-                    <div style={styles.tutorAvatarBadge}>
+                    <div
+                      style={{
+                        ...styles.tutorAvatarBadge,
+                        backgroundColor: isTeacher ? '#7E22CE' : '#2563EB',
+                      }}
+                    >
                       <Bot size={22} color="#FFFFFF" />
                     </div>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h4 style={styles.tutorEvalTitle}>Evaluación Práctica con Docente Virtual</h4>
-                        <span style={styles.demoBadge}>Demo • 0 Créditos</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h4 style={styles.tutorEvalTitle}>
+                          {isTeacher
+                            ? 'Tutor Virtual • Modo Simulación Técnica'
+                            : 'Evaluación Práctica con Docente Virtual'}
+                        </h4>
+                        <span
+                          style={{
+                            ...styles.demoBadge,
+                            backgroundColor: isTeacher ? '#F3E8FF' : '#E0E7FF',
+                            color: isTeacher ? '#7E22CE' : '#3730A3',
+                          }}
+                        >
+                          {isTeacher ? 'Playground Docente • Sin Calificación' : 'Demo • 0 Créditos'}
+                        </span>
                       </div>
                       <span style={styles.tutorEvalSubText}>
-                        Evaluación oral y escrita interactiva con IA: 1 pregunta clave por cada lección de este módulo.
+                        {isTeacher
+                          ? 'Prueba la interacción y el avatar 3D sin registrar notas en el historial ni alterar los KPIs de los estudiantes.'
+                          : 'Evaluación oral y escrita interactiva con IA: 1 pregunta clave por cada lección de este módulo.'}
                       </span>
                     </div>
                   </div>
@@ -278,16 +482,25 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
                       <span>Detalles de Recopilación</span>
                     </button>
 
-                    {/* Botón de Iniciar Evaluación sin restricciones de créditos */}
+                    {/* Botón de Iniciar Evaluación / Simulación */}
                     {mod.lessons.length > 0 ? (
                       <button
                         onClick={() => setSelectedModuleForEvaluation(mod)}
-                        className="btn-primary"
-                        style={styles.startEvalBtn}
-                        title="Comenzar la evaluación interactiva con el Docente Virtual"
+                        className={isTeacher ? 'btn-secondary' : 'btn-primary'}
+                        style={{
+                          ...styles.startEvalBtn,
+                          backgroundColor: isTeacher ? '#FAF5FF' : undefined,
+                          borderColor: isTeacher ? '#7E22CE' : undefined,
+                          color: isTeacher ? '#7E22CE' : undefined,
+                        }}
+                        title={
+                          isTeacher
+                            ? 'Iniciar simulación interactiva con el Tutor Virtual'
+                            : 'Comenzar la evaluación interactiva con el Docente Virtual'
+                        }
                       >
-                        <Sparkles size={16} />
-                        <span>Comenzar Evaluación (Demo)</span>
+                        <Sparkles size={16} color={isTeacher ? '#7E22CE' : '#FFFFFF'} />
+                        <span>{isTeacher ? 'Probar Interacción del Tutor' : 'Comenzar Evaluación (Demo)'}</span>
                       </button>
                     ) : (
                       <button
@@ -320,11 +533,12 @@ export function CourseDetailPage({ courseId, user: _user, onSelectLesson, onBack
         />
       )}
 
-      {/* MODAL 2: Sesión Evaluativa con Docente Virtual Humanoide */}
+      {/* MODAL 2: Sesión Evaluativa con Docente Virtual Humanoide (Soporte isSimulation) */}
       {selectedModuleForEvaluation && (
         <VirtualTutorEvaluatorModal
           moduleId={selectedModuleForEvaluation.id}
           moduleTitle={selectedModuleForEvaluation.title}
+          isSimulation={isTeacher}
           onClose={() => setSelectedModuleForEvaluation(null)}
           onFinish={() => {
             loadCourseDetail();
@@ -606,5 +820,68 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 18px',
     fontSize: '13px',
     background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+  },
+  notificationBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 18px',
+    borderRadius: '12px',
+    border: '1px solid',
+    marginBottom: '20px',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
+  },
+  closeNotificationBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'inherit',
+    cursor: 'pointer',
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.8,
+  },
+  teacherBannerBox: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '18px 22px',
+    backgroundColor: '#F0F9FF',
+    borderRadius: '14px',
+    border: '1px solid #BAE6FD',
+    marginTop: '20px',
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
+  teacherBannerContent: {
+    flex: 1,
+    minWidth: '240px',
+  },
+  teacherBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '13px',
+    fontWeight: 700,
+    color: '#0A58CA',
+  },
+  emptyStateCard: {
+    padding: '48px 24px',
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateIconBox: {
+    width: '64px',
+    height: '64px',
+    borderRadius: '50%',
+    backgroundColor: '#EFF6FF',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: '16px',
   },
 };

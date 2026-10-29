@@ -29,6 +29,7 @@ import type {
 interface VirtualTutorEvaluatorModalProps {
   moduleId: string;
   moduleTitle: string;
+  isSimulation?: boolean;
   onClose: () => void;
   onFinish?: (summary: FinalEvaluationSummary) => void;
 }
@@ -36,6 +37,7 @@ interface VirtualTutorEvaluatorModalProps {
 export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProps> = ({
   moduleId,
   moduleTitle,
+  isSimulation = false,
   onClose,
   onFinish,
 }) => {
@@ -314,6 +316,7 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
         moduleId,
         lessonIndex: currentLessonIndex,
         userResponse: answerToSend,
+        isSimulation: Boolean(isSimulation),
       });
 
       const { isCorrect, feedbackText, visemes, avatarEmotion, hasNextLesson, nextQuestion, finalSummary: summary } =
@@ -396,6 +399,26 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
               <Bot size={18} color="#2563EB" />
               <span style={styles.tutorTitle}>Docente Virtual Humano • Skylearn</span>
             </div>
+
+            {isSimulation && (
+              <span
+                style={{
+                  backgroundColor: '#F3E8FF',
+                  color: '#7E22CE',
+                  border: '1px solid #E9D5FF',
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Sparkles size={12} color="#7E22CE" />
+                <span>Modo Simulación • Sin Calificación</span>
+              </span>
+            )}
 
             {/* Botón Discreto de Prueba de Conexión con Google API */}
             <button
@@ -497,19 +520,31 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
             {finalSummary ? (
               <div style={styles.finalSummaryCard}>
                 <div style={styles.summaryBadge}>
-                  <Award size={36} color={finalSummary.approved ? '#059669' : '#D97706'} />
+                  <Award size={36} color={isSimulation ? '#7E22CE' : finalSummary.approved ? '#059669' : '#D97706'} />
                   <h3 style={styles.summaryTitle}>
-                    {finalSummary.approved ? '¡Evaluación Aprobada con Éxito!' : 'Evaluación Completada'}
+                    {isSimulation
+                      ? '¡Verificación Técnica Exitosa!'
+                      : finalSummary.approved
+                      ? '¡Evaluación Aprobada con Éxito!'
+                      : 'Evaluación Completada'}
                   </h3>
                   <span style={styles.summaryScore}>
-                    Calificación formativa: <strong>{finalSummary.scorePercentage}%</strong>
+                    {isSimulation ? (
+                      <span style={{ color: '#7E22CE', fontWeight: 600 }}>
+                        Prueba interactiva completada • Sin registro de notas en historiales de alumnos
+                      </span>
+                    ) : (
+                      <>
+                        Calificación formativa: <strong>{finalSummary.scorePercentage}%</strong>
+                      </>
+                    )}
                   </span>
                 </div>
                 <p style={styles.summaryRemarks}>{finalSummary.closingRemarks}</p>
                 <div style={styles.summaryActions}>
                   <button onClick={onClose} className="btn-primary" style={{ padding: '10px 24px' }}>
                     <CheckCircle2 size={18} />
-                    <span>Finalizar y Volver al Temario</span>
+                    <span>{isSimulation ? 'Finalizar Simulación y Volver al Temario' : 'Finalizar y Volver al Temario'}</span>
                   </button>
                 </div>
               </div>

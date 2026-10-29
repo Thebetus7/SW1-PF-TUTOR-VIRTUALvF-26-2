@@ -15,29 +15,51 @@ interface QuestionItem {
 
 interface TeacherLessonEditorProps {
   moduleId: string;
+  initialLesson?: any | null;
   onLessonCreated: (lesson: any) => void;
   onCancel: () => void;
 }
 
 export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
   moduleId,
+  initialLesson,
   onLessonCreated,
   onCancel,
 }) => {
-  const [title, setTitle] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
-  const [contextText, setContextText] = useState('');
-  const [downloadableUrl, setDownloadableUrl] = useState('');
-  const [hasExam, setHasExam] = useState(false);
-  const [questions, setQuestions] = useState<QuestionItem[]>([
-    {
-      text: '',
-      options: [
-        { text: '', isCorrect: true },
-        { text: '', isCorrect: false },
-      ],
-    },
-  ]);
+  const isEditing = Boolean(initialLesson);
+
+  const [title, setTitle] = useState(initialLesson?.title || '');
+  const [videoUrl, setVideoUrl] = useState(initialLesson?.videoUrl || '');
+  const [contextText, setContextText] = useState(initialLesson?.contextText || '');
+  const [downloadableUrl, setDownloadableUrl] = useState(initialLesson?.downloadableUrl || '');
+
+  // Carga previa de preguntas si la lección ya contaba con formulario de examen
+  const existingQuestions: QuestionItem[] =
+    initialLesson?.exams?.[0]?.questions && initialLesson.exams[0].questions.length > 0
+      ? initialLesson.exams[0].questions.map((q: any) => ({
+          text: q.text,
+          options: q.options?.map((opt: any) => ({
+            text: opt.text,
+            isCorrect: Boolean(opt.isCorrect),
+          })) || [
+            { text: '', isCorrect: true },
+            { text: '', isCorrect: false },
+          ],
+        }))
+      : [
+          {
+            text: '',
+            options: [
+              { text: '', isCorrect: true },
+              { text: '', isCorrect: false },
+            ],
+          },
+        ];
+
+  const [hasExam, setHasExam] = useState(
+    Boolean(initialLesson?.exams && initialLesson.exams.length > 0),
+  );
+  const [questions, setQuestions] = useState<QuestionItem[]>(existingQuestions);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -84,7 +106,7 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
         videoUrl,
         contextText,
         downloadableUrl: downloadableUrl.trim() || undefined,
-        order: 1,
+        order: initialLesson?.order || 1,
       };
 
       if (hasExam) {
@@ -98,9 +120,14 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
             })),
           })),
         };
+      } else {
+        payload.examForm = null;
       }
 
-      const res = await api.post(`/modules/${moduleId}/lessons`, payload);
+      const res = isEditing
+        ? await api.put(`/lessons/${initialLesson.id}`, payload)
+        : await api.post(`/modules/${moduleId}/lessons`, payload);
+
       onLessonCreated(res.data);
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.response?.data?.message || 'Error al guardar la lección';
@@ -115,8 +142,14 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
       <div className="skylearn-card" style={styles.modalCard}>
         <div style={styles.header}>
           <div>
-            <h3 style={styles.title}>Nueva Lección con Formulario Evaluativo</h3>
-            <span style={styles.subtitle}>Configura el video, contexto pedagógico y preguntas evaluativas</span>
+            <h3 style={styles.title}>
+              {isEditing ? 'Editar Lección Didáctica' : 'Nueva Lección con Formulario Evaluativo'}
+            </h3>
+            <span style={styles.subtitle}>
+              {isEditing
+                ? 'Modifica el video, contexto pedagógico o las preguntas de evaluación de la lección'
+                : 'Configura el video, contexto pedagógico y preguntas evaluativas'}
+            </span>
           </div>
           <button onClick={onCancel} style={styles.closeBtn}><X size={20} /></button>
         </div>
@@ -286,7 +319,13 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
             </button>
             <button type="submit" disabled={loading} className="btn-big-friendly">
               <Save size={18} />
-              <span>{loading ? 'Guardando...' : 'Guardar Lección'}</span>
+              <span>
+                {loading
+                  ? 'Guardando...'
+                  : isEditing
+                  ? 'Guardar Cambios de Lección'
+                  : 'Guardar Lección'}
+              </span>
             </button>
           </div>
         </form>

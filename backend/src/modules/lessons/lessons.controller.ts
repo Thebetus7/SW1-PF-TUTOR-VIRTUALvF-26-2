@@ -1,8 +1,9 @@
 // backend/src/modules/lessons/lessons.controller.ts
-import { Controller, Post, Get, Body, Param, UseGuards, Request, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, Request, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
+import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/guards/roles.decorator';
@@ -27,6 +28,35 @@ export class LessonsController {
     @Body() dto: CreateLessonDto,
   ) {
     return this.lessonsService.createLesson(moduleId, req.user.id, dto);
+  }
+
+  @Put('lessons/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.TEACHER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar una lección y su formulario evaluativo' })
+  @ApiResponse({ status: 200, description: 'Lección actualizada exitosamente' })
+  @ApiResponse({ status: 403, description: 'No autorizado para modificar esta lección' })
+  async updateLesson(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: any,
+    @Body() dto: UpdateLessonDto,
+  ) {
+    return this.lessonsService.update(id, req.user.id, dto);
+  }
+
+  @Delete('lessons/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.TEACHER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar una lección y sus relaciones en cascada' })
+  @ApiResponse({ status: 200, description: 'Lección eliminada exitosamente' })
+  @ApiResponse({ status: 403, description: 'No autorizado para eliminar esta lección' })
+  async deleteLesson(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: any,
+  ) {
+    return this.lessonsService.remove(id, req.user.id);
   }
 
   @Get('lessons/:id')

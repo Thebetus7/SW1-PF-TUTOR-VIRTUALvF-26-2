@@ -1,8 +1,9 @@
 // backend/src/modules/courses/courses.controller.ts
-import { Controller, Post, Get, Patch, Body, Param, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Put, Patch, Delete, Body, Param, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { UpdateCourseDto } from './dto/update-course.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -39,6 +40,20 @@ export class CoursesController {
     return this.coursesService.findOne(id, req.user?.id);
   }
 
+  @Put(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.TEACHER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar un curso (requiere rol TEACHER y ser el autor)' })
+  @ApiResponse({ status: 200, description: 'Curso actualizado exitosamente' })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: any,
+    @Body() dto: UpdateCourseDto,
+  ) {
+    return this.coursesService.update(id, req.user.id, dto);
+  }
+
   @Post(':id/enroll')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -46,6 +61,16 @@ export class CoursesController {
   @ApiResponse({ status: 201, description: 'Inscripción realizada exitosamente' })
   async enroll(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
     return this.coursesService.enroll(id, req.user.id);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.TEACHER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar o dar de baja un curso (requiere rol TEACHER y ser el autor)' })
+  @ApiResponse({ status: 200, description: 'Curso eliminado o archivado exitosamente' })
+  async delete(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.coursesService.archive(id, req.user.id);
   }
 
   @Patch(':id/archive')

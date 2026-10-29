@@ -65,6 +65,7 @@ Una vez resueltas las preguntas con el usuario, la IA aplica la actualización c
 
 #### 3. Encolado de Nuevas Tareas en `docs/specs/XX-nombre/tasks.md`
 - **Conserva el 100% de las tareas previas ya marcadas (`[x]`)**.
+- **Actualiza la tabla `Task Progress` en la cabecera** incrementando `Total de tareas` y `Tareas por realizar`, recalculando el progreso porcentual.
 - Añade al final una nueva sección con el bloque de tareas para la nueva iteración:
 
 ```markdown

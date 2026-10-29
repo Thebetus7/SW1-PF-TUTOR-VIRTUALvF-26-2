@@ -205,7 +205,10 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
   async answerModuleEvaluation(
     userId: string,
     dto: AnswerModuleEvaluationDto,
+    userRole?: string,
   ): Promise<AnswerModuleEvaluationResponseDto> {
+    const isSimulationMode = Boolean(dto.isSimulation || userRole === 'TEACHER');
+
     const module = await this.prisma.module.findUnique({
       where: { id: dto.moduleId },
       include: {
@@ -299,39 +302,54 @@ Responde en JSON: { "questionText": string }`;
         questionText: nextQText,
       };
     } else {
-      // Fin de la evaluación: persistir ExamAttempt con costo 0 créditos
-      const exam = await this.prisma.exam.findFirst({
-        where: { moduleId: module.id },
-      });
-
+      // Fin de la evaluación
       const scorePercentage = evaluation.isCorrect ? 85.0 : 70.0;
-      const isPassed = scorePercentage >= (exam?.passScore || 70.0);
-      const closingRemarks = `¡Felicitaciones! Has completado la evaluación del módulo "${module.title}" junto al Docente Virtual. Has demostrado una excelente apropiación conceptual.`;
+      const passThreshold = 70.0;
+      const isPassed = scorePercentage >= passThreshold;
 
-      let attemptId: string | undefined = undefined;
-      if (exam) {
-        try {
-          const attempt = await this.prisma.examAttempt.create({
-            data: {
-              userId,
-              examId: exam.id,
-              score: scorePercentage,
-              isPassed,
-              aiFeedback: `${evaluation.feedbackText} - ${closingRemarks}`,
-            },
-          });
-          attemptId = attempt.id;
-        } catch (dbErr: any) {
-          this.logger.error(`Error guardando ExamAttempt para tutor virtual: ${dbErr.message}`);
+      if (isSimulationMode) {
+        // Modo simulación / docente: NO persistir ExamAttempt ni alterar métricas
+        finalSummary = {
+          approved: isPassed,
+          scorePercentage,
+          closingRemarks: `[Modo Simulación Docente] Verificación técnica completada para "${module.title}". El flujo interactivo y el avatar operaron correctamente sin registrar notas en el historial de estudiantes.`,
+          attemptId: undefined,
+          isSimulation: true,
+        };
+      } else {
+        // Estudiante formal: persistir ExamAttempt con costo 0 créditos
+        const exam = await this.prisma.exam.findFirst({
+          where: { moduleId: module.id },
+        });
+
+        const closingRemarks = `¡Felicitaciones! Has completado la evaluación del módulo "${module.title}" junto al Docente Virtual. Has demostrado una excelente apropiación conceptual.`;
+
+        let attemptId: string | undefined = undefined;
+        if (exam) {
+          try {
+            const attempt = await this.prisma.examAttempt.create({
+              data: {
+                userId,
+                examId: exam.id,
+                score: scorePercentage,
+                isPassed,
+                aiFeedback: `${evaluation.feedbackText} - ${closingRemarks}`,
+              },
+            });
+            attemptId = attempt.id;
+          } catch (dbErr: any) {
+            this.logger.error(`Error guardando ExamAttempt para tutor virtual: ${dbErr.message}`);
+          }
         }
-      }
 
-      finalSummary = {
-        approved: isPassed,
-        scorePercentage,
-        closingRemarks,
-        attemptId,
-      };
+        finalSummary = {
+          approved: isPassed,
+          scorePercentage,
+          closingRemarks,
+          attemptId,
+          isSimulation: false,
+        };
+      }
     }
 
     return {
@@ -340,6 +358,7 @@ Responde en JSON: { "questionText": string }`;
       visemes,
       avatarEmotion: evaluation.avatarEmotion,
       hasNextLesson,
+      isSimulation: isSimulationMode,
       nextQuestion,
       finalSummary,
     };

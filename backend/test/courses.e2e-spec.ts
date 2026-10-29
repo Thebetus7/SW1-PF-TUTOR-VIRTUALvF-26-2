@@ -108,12 +108,28 @@ describe('Vertical Slice 2: Catálogo Curricular & Lecciones (BDD E2E)', () => {
           exams: Array.from(examsDb.values()).filter((e) => e.lessonId === l.id),
         });
       }),
+      update: jest.fn().mockImplementation(({ where, data }) => {
+        const existing = lessonsDb.get(where.id);
+        const updated = { ...existing, ...data };
+        lessonsDb.set(where.id, updated);
+        return Promise.resolve(updated);
+      }),
+      delete: jest.fn().mockImplementation(({ where }) => {
+        lessonsDb.delete(where.id);
+        return Promise.resolve({ id: where.id });
+      }),
     },
     exam: {
       create: jest.fn().mockImplementation(({ data }) => {
         const exam = { id: 'exam-' + Math.random().toString(36).substring(7), ...data, questions: [] };
         examsDb.set(exam.id, exam);
         return Promise.resolve(exam);
+      }),
+      deleteMany: jest.fn().mockImplementation(({ where }) => {
+        for (const [id, e] of examsDb.entries()) {
+          if (e.lessonId === where.lessonId) examsDb.delete(id);
+        }
+        return Promise.resolve({ count: 1 });
       }),
     },
     question: {
@@ -276,6 +292,95 @@ describe('Vertical Slice 2: Catálogo Curricular & Lecciones (BDD E2E)', () => {
 
       expect(response.body).toHaveProperty('status', 'ARCHIVED');
       expect(response.body.message).toContain('modo archivado');
+    });
+
+    it('debe actualizar datos del curso con PUT /courses/:id si el docente es el autor', async () => {
+      const courseToUpdate = {
+        id: 'c0000000-0000-4000-8000-000000000004',
+        title: 'Curso Previo a Editar',
+        description: 'Descripción antigua del curso',
+        teacherId,
+        status: CourseStatus.PUBLISHED,
+        enrollments: [],
+      };
+      coursesDb.set(courseToUpdate.id, courseToUpdate);
+
+      const response = await request(app.getHttpServer())
+        .put(`/api/v1/courses/${courseToUpdate.id}`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({
+          title: 'Curso Completamente Editado',
+          description: 'Nueva descripción enriquecida',
+          categoryName: 'Inteligencia Artificial',
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('title', 'Curso Completamente Editado');
+      expect(response.body).toHaveProperty('description', 'Nueva descripción enriquecida');
+    });
+
+    it('debe eliminar físicamente con DELETE /courses/:id si no tiene alumnos inscritos', async () => {
+      const courseToDelete = {
+        id: 'c0000000-0000-4000-8000-000000000005',
+        title: 'Curso sin Estudiantes',
+        description: 'Curso vacío que puede borrarse',
+        teacherId,
+        status: CourseStatus.PUBLISHED,
+        enrollments: [],
+      };
+      coursesDb.set(courseToDelete.id, courseToDelete);
+
+      const response = await request(app.getHttpServer())
+        .delete(`/api/v1/courses/${courseToDelete.id}`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('status', 'DELETED');
+    });
+
+    it('debe actualizar una lección con PUT /lessons/:id si el docente es el autor', async () => {
+      const lessonId = 'a0000000-0000-4000-8000-000000000011';
+      lessonsDb.set(lessonId, {
+        id: lessonId,
+        title: 'Lección Original',
+        videoUrl: 'https://www.youtube.com/watch?v=original123',
+        contextText: 'Contexto didáctico original',
+        downloadableUrl: 'https://skylearn.edu/placeholder.pdf',
+        order: 1,
+        moduleId: testModuleId,
+      });
+
+      const response = await request(app.getHttpServer())
+        .put(`/api/v1/lessons/${lessonId}`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({
+          title: 'Lección Editada con Éxito',
+          videoUrl: 'https://www.youtube.com/watch?v=edited12345',
+          contextText: 'Nuevo contexto didáctico ampliado',
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('title', 'Lección Editada con Éxito');
+      expect(response.body).toHaveProperty('videoUrl', 'https://www.youtube.com/watch?v=edited12345');
+    });
+
+    it('debe eliminar una lección con DELETE /lessons/:id', async () => {
+      const lessonId = 'a0000000-0000-4000-8000-000000000012';
+      lessonsDb.set(lessonId, {
+        id: lessonId,
+        title: 'Lección a Eliminar',
+        videoUrl: 'https://www.youtube.com/watch?v=tobedeleted',
+        contextText: 'Contexto a borrar',
+        order: 2,
+        moduleId: testModuleId,
+      });
+
+      const response = await request(app.getHttpServer())
+        .delete(`/api/v1/lessons/${lessonId}`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .expect(200);
+
+      expect(response.body.message).toContain('eliminada exitosamente');
     });
   });
 });

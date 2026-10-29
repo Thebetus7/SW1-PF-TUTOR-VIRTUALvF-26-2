@@ -12,6 +12,10 @@ import {
   CheckCircle,
   FileQuestion,
   ExternalLink,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -45,13 +49,29 @@ export function TeacherCourseManager({
   const [showCreateCourseModal, setShowCreateCourseModal] = useState(false);
   const [showLessonEditor, setShowLessonEditor] = useState(false);
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Formulario nuevo curso
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newCategory, setNewCategory] = useState('Desarrollo Web');
   const [isSubmittingCourse, setIsSubmittingCourse] = useState(false);
+
+  // Formulario edición de curso
+  const [editingCourse, setEditingCourse] = useState<CourseItem | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editCategory, setEditCategory] = useState('Desarrollo Web');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // Confirmación eliminación de curso
+  const [deletingCourse, setDeletingCourse] = useState<CourseItem | null>(null);
+  const [isDeletingCourse, setIsDeletingCourse] = useState(false);
+
+  // Edición y eliminación de lección
+  const [editingLesson, setEditingLesson] = useState<any | null>(null);
+  const [deletingLesson, setDeletingLesson] = useState<any | null>(null);
+  const [isDeletingLesson, setIsDeletingLesson] = useState(false);
 
   useEffect(() => {
     loadCourses();
@@ -93,6 +113,13 @@ export function TeacherCourseManager({
     }
   };
 
+  const triggerToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message: msg, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4500);
+  };
+
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -116,28 +143,127 @@ export function TeacherCourseManager({
       triggerToast(`¡Curso "${res.data.title}" creado exitosamente! Ahora puedes agregarle lecciones.`);
     } catch (err: any) {
       console.error('Error al crear curso:', err);
-      alert(err.response?.data?.detail || 'Error al crear el curso');
+      triggerToast(err.response?.data?.message || err.response?.data?.detail || 'Error al crear el curso', 'error');
     } finally {
       setIsSubmittingCourse(false);
     }
   };
 
-  const triggerToast = (msg: string) => {
-    setSuccessToast(msg);
-    setTimeout(() => {
-      setSuccessToast(null);
-    }, 4500);
+  const handleStartEditCourse = (course: CourseItem) => {
+    setEditingCourse(course);
+    setEditTitle(course.title);
+    setEditDescription(course.description || '');
+    setEditCategory(course.category || 'Desarrollo Web');
+  };
+
+  const handleSaveEditCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCourse || !editTitle.trim()) return;
+
+    setIsSubmittingEdit(true);
+    try {
+      const res = await api.put(`/courses/${editingCourse.id}`, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        categoryName: editCategory.trim() || 'General',
+      });
+
+      confetti({ particleCount: 60 });
+      triggerToast(`¡Curso "${res.data.title}" actualizado con éxito!`);
+      setEditingCourse(null);
+
+      // Recargar lista y si estábamos viendo su detalle, actualizarlo
+      await loadCourses();
+      if (selectedCourseId === editingCourse.id) {
+        await loadCourseDetail(editingCourse.id);
+      }
+    } catch (err: any) {
+      console.error('Error al editar curso:', err);
+      triggerToast(err.response?.data?.message || err.response?.data?.detail || 'Error al actualizar el curso', 'error');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const handleStartDeleteCourse = (course: CourseItem) => {
+    setDeletingCourse(course);
+  };
+
+  const handleConfirmDeleteCourse = async () => {
+    if (!deletingCourse) return;
+
+    setIsDeletingCourse(true);
+    try {
+      const res = await api.delete(`/courses/${deletingCourse.id}`);
+      const deletedTitle = deletingCourse.title;
+      const msg = res.data?.message || `El curso "${deletedTitle}" ha sido procesado exitosamente.`;
+      triggerToast(msg);
+      setDeletingCourse(null);
+
+      // Si el curso eliminado era el que estaba seleccionado en detalle, volver a la lista
+      if (selectedCourseId === deletingCourse.id) {
+        onBackToCourseList();
+      }
+      await loadCourses();
+    } catch (err: any) {
+      console.error('Error al eliminar curso:', err);
+      triggerToast(err.response?.data?.message || err.response?.data?.detail || 'Error al eliminar el curso', 'error');
+    } finally {
+      setIsDeletingCourse(false);
+    }
   };
 
   const handleOpenLessonEditor = (moduleId: string) => {
     setActiveModuleId(moduleId);
+    setEditingLesson(null);
     setShowLessonEditor(true);
   };
 
-  const handleLessonSaved = (newLesson: any) => {
+  const handleStartEditLesson = (lesson: any, moduleId: string) => {
+    setActiveModuleId(moduleId);
+    setEditingLesson(lesson);
+    setShowLessonEditor(true);
+  };
+
+  const handleStartDeleteLesson = (lesson: any) => {
+    setDeletingLesson(lesson);
+  };
+
+  const handleConfirmDeleteLesson = async () => {
+    if (!deletingLesson) return;
+
+    setIsDeletingLesson(true);
+    try {
+      const res = await api.delete(`/lessons/${deletingLesson.id}`);
+      const deletedTitle = deletingLesson.title;
+      triggerToast(res.data?.message || `Lección "${deletedTitle}" eliminada exitosamente.`);
+      setDeletingLesson(null);
+
+      if (selectedCourseId) {
+        await loadCourseDetail(selectedCourseId);
+      }
+      await loadCourses();
+    } catch (err: any) {
+      console.error('Error al eliminar lección:', err);
+      triggerToast(
+        err.response?.data?.message || err.response?.data?.detail || 'Error al eliminar la lección',
+        'error',
+      );
+    } finally {
+      setIsDeletingLesson(false);
+    }
+  };
+
+  const handleLessonSaved = (savedLesson: any) => {
+    const wasEditing = Boolean(editingLesson);
     setShowLessonEditor(false);
+    setEditingLesson(null);
     confetti({ particleCount: 80, spread: 60 });
-    triggerToast(`¡Lección "${newLesson.title}" guardada exitosamente en el curso!`);
+    triggerToast(
+      wasEditing
+        ? `¡Lección "${savedLesson.title}" actualizada exitosamente!`
+        : `¡Lección "${savedLesson.title}" guardada exitosamente en el curso!`,
+    );
     if (selectedCourseId) {
       loadCourseDetail(selectedCourseId);
     }
@@ -146,11 +272,22 @@ export function TeacherCourseManager({
 
   return (
     <div style={styles.container}>
-      {/* Toast flotante de éxito */}
-      {successToast && (
-        <div style={styles.toastBanner}>
-          <CheckCircle size={20} color="#046C4E" />
-          <span>{successToast}</span>
+      {/* Toast flotante accesible */}
+      {toast && (
+        <div
+          style={{
+            ...styles.toastBanner,
+            backgroundColor: toast.type === 'error' ? '#FDE8E8' : '#DEF7EC',
+            color: toast.type === 'error' ? '#9B1C1C' : '#03543F',
+            borderColor: toast.type === 'error' ? '#F98080' : '#31C48D',
+          }}
+        >
+          {toast.type === 'error' ? (
+            <AlertTriangle size={20} color="#9B1C1C" />
+          ) : (
+            <CheckCircle size={20} color="#046C4E" />
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
 
@@ -171,21 +308,43 @@ export function TeacherCourseManager({
             </div>
 
             <div style={styles.headerTitleRow}>
-              <div>
+              <div style={{ flex: 1, minWidth: '260px' }}>
                 <h1 style={styles.pageTitle}>{currentCourseDetail.title}</h1>
                 <p style={styles.pageSubtitle}>{currentCourseDetail.description}</p>
               </div>
 
-              {activeModuleId && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <button
-                  className="btn-big-friendly"
-                  onClick={() => handleOpenLessonEditor(activeModuleId)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  className="btn-secondary"
+                  onClick={() => handleStartEditCourse(currentCourseDetail)}
+                  title="Editar datos del curso"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <PlusCircle size={20} />
-                  <span>Añadir Lección a este Curso</span>
+                  <Pencil size={16} />
+                  <span>Editar Curso</span>
                 </button>
-              )}
+
+                <button
+                  className="btn-secondary"
+                  onClick={() => handleStartDeleteCourse(currentCourseDetail)}
+                  title="Eliminar curso"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#DC2626', borderColor: '#FCA5A5' }}
+                >
+                  <Trash2 size={16} />
+                  <span>Eliminar Curso</span>
+                </button>
+
+                {activeModuleId && (
+                  <button
+                    className="btn-big-friendly"
+                    onClick={() => handleOpenLessonEditor(activeModuleId)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <PlusCircle size={20} />
+                    <span>Añadir Lección a este Curso</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -264,27 +423,52 @@ export function TeacherCourseManager({
                           </p>
 
                           <div style={styles.lessonCardFooter}>
-                            {lesson.exams && lesson.exams.length > 0 ? (
-                              <div style={styles.examTag}>
-                                <FileQuestion size={14} color="#046C4E" />
-                                <span>Tiene Formulario ({lesson.exams.length})</span>
-                              </div>
-                            ) : (
-                              <span style={{ fontSize: '12px', color: 'var(--color-ink-muted)' }}>
-                                Sin formulario evaluativo
-                              </span>
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {lesson.exams && lesson.exams.length > 0 ? (
+                                <div style={styles.examTag}>
+                                  <FileQuestion size={14} color="#046C4E" />
+                                  <span>Tiene Formulario ({lesson.exams.length})</span>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '12px', color: 'var(--color-ink-muted)' }}>
+                                  Sin formulario evaluativo
+                                </span>
+                              )}
+                            </div>
 
-                            {onSelectLessonForPreview && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {onSelectLessonForPreview && (
+                                <button
+                                  className="btn-secondary"
+                                  onClick={() => onSelectLessonForPreview(lesson)}
+                                  title="Previsualizar cómo verá la lección el alumno"
+                                  style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  <span>Preview</span>
+                                  <ExternalLink size={13} />
+                                </button>
+                              )}
+
                               <button
                                 className="btn-secondary"
-                                onClick={() => onSelectLessonForPreview(lesson)}
-                                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                onClick={() => handleStartEditLesson(lesson, mod.id)}
+                                title="Editar video, contexto y preguntas de la lección"
+                                aria-label={`Editar lección ${lesson.title}`}
+                                style={{ padding: '6px 8px', display: 'inline-flex', alignItems: 'center' }}
                               >
-                                <span>Ver Preview</span>
-                                <ExternalLink size={13} />
+                                <Pencil size={14} />
                               </button>
-                            )}
+
+                              <button
+                                className="btn-secondary"
+                                onClick={() => handleStartDeleteLesson(lesson)}
+                                title="Eliminar lección"
+                                aria-label={`Eliminar lección ${lesson.title}`}
+                                style={{ padding: '6px 8px', display: 'inline-flex', alignItems: 'center', color: '#DC2626', borderColor: '#FCA5A5' }}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -356,10 +540,30 @@ export function TeacherCourseManager({
                     <button
                       className="btn-primary"
                       onClick={() => onNavigateToCourse(course.id)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', width: '100%', justifyContent: 'center' }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 14px', flex: 1, justifyContent: 'center' }}
                     >
-                      <BookOpen size={18} />
-                      <span>Gestionar Lecciones del Curso</span>
+                      <BookOpen size={17} />
+                      <span>Gestionar</span>
+                    </button>
+
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleStartEditCourse(course)}
+                      title="Editar datos del curso"
+                      aria-label={`Editar curso ${course.title}`}
+                      style={{ padding: '10px 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Pencil size={16} />
+                    </button>
+
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleStartDeleteCourse(course)}
+                      title="Eliminar curso"
+                      aria-label={`Eliminar curso ${course.title}`}
+                      style={{ padding: '10px 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626', borderColor: '#FCA5A5' }}
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
@@ -444,13 +648,247 @@ export function TeacherCourseManager({
         </div>
       )}
 
+      {/* MODAL PARA EDITAR UN CURSO */}
+      {editingCourse && (
+        <div style={styles.modalOverlay}>
+          <div className="skylearn-card" style={styles.modalCard}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: 'var(--color-ink)' }}>
+                Editar Curso
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditingCourse(null)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-ink-muted)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p style={{ fontSize: '14px', color: 'var(--color-ink-muted)', margin: '0 0 20px 0' }}>
+              Modifica el título, categoría didáctica o resumen pedagógico del curso.
+            </p>
+
+            <form onSubmit={handleSaveEditCourse}>
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Título del Curso *</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Categoría Didáctica</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  style={styles.input}
+                >
+                  <option value="Desarrollo Web">Desarrollo Web</option>
+                  <option value="Matemáticas">Matemáticas</option>
+                  <option value="Ciencias Naturales">Ciencias Naturales</option>
+                  <option value="Arte y Música">Arte y Música</option>
+                  <option value="Idiomas">Idiomas</option>
+                  <option value="General">General</option>
+                </select>
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Descripción del Curso</label>
+                <textarea
+                  rows={3}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  style={{ ...styles.input, resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={styles.modalActions}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setEditingCourse(null)}
+                  disabled={isSubmittingEdit}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-big-friendly"
+                  disabled={isSubmittingEdit}
+                  style={{ minWidth: '160px', justifyContent: 'center' }}
+                >
+                  <Pencil size={18} />
+                  <span>{isSubmittingEdit ? 'Guardando...' : 'Guardar Cambios'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
+      {deletingCourse && (
+        <div style={styles.modalOverlay}>
+          <div className="skylearn-card" style={{ ...styles.modalCard, maxWidth: '480px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+              <div
+                style={{
+                  backgroundColor: '#FDE8E8',
+                  borderRadius: '50%',
+                  padding: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AlertTriangle size={28} color="#E02424" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: '#9B1C1C' }}>
+                  ¿Eliminar este curso?
+                </h2>
+                <span style={{ fontSize: '13px', color: 'var(--color-ink-muted)' }}>
+                  Acción irreversible o archivo preventivo
+                </span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '14px', color: 'var(--color-ink)', lineHeight: 1.6, margin: '0 0 16px 0' }}>
+              Estás a punto de eliminar el curso <strong>"{deletingCourse.title}"</strong>.
+            </p>
+
+            <div
+              style={{
+                backgroundColor: '#F3F4F6',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                fontSize: '13px',
+                color: 'var(--color-ink-muted)',
+                marginBottom: '24px',
+                borderLeft: '4px solid #3B82F6',
+              }}
+            >
+              <strong>Política del Sistema:</strong> Si el curso no tiene estudiantes matriculados, se eliminará por completo junto con sus módulos. Si ya cuenta con estudiantes activos, se archivará automáticamente para preservar su progreso formativo.
+            </div>
+
+            <div style={styles.modalActions}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setDeletingCourse(null)}
+                disabled={isDeletingCourse}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteCourse}
+                disabled={isDeletingCourse}
+                style={{
+                  backgroundColor: '#E02424',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '10px 20px',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: isDeletingCourse ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(224, 36, 36, 0.3)',
+                }}
+              >
+                <Trash2 size={16} />
+                <span>{isDeletingCourse ? 'Eliminando...' : 'Sí, eliminar curso'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL EDITOR DE LECCIÓN DENTRO DEL MÓDULO DEL CURSO */}
       {showLessonEditor && activeModuleId && (
         <TeacherLessonEditor
           moduleId={activeModuleId}
+          initialLesson={editingLesson}
           onLessonCreated={handleLessonSaved}
-          onCancel={() => setShowLessonEditor(false)}
+          onCancel={() => {
+            setShowLessonEditor(false);
+            setEditingLesson(null);
+          }}
         />
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN DE LECCIÓN */}
+      {deletingLesson && (
+        <div style={styles.modalOverlay}>
+          <div className="skylearn-card" style={{ ...styles.modalCard, maxWidth: '480px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+              <div
+                style={{
+                  backgroundColor: '#FDE8E8',
+                  borderRadius: '50%',
+                  padding: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AlertTriangle size={28} color="#E02424" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: '#9B1C1C' }}>
+                  ¿Eliminar esta lección?
+                </h2>
+                <span style={{ fontSize: '13px', color: 'var(--color-ink-muted)' }}>
+                  Acción permanente
+                </span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '14px', color: 'var(--color-ink)', lineHeight: 1.6, margin: '0 0 16px 0' }}>
+              Estás a punto de eliminar la lección <strong>"{deletingLesson.title}"</strong> y su formulario evaluativo asociado si lo tuviera.
+            </p>
+
+            <div style={styles.modalActions}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setDeletingLesson(null)}
+                disabled={isDeletingLesson}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteLesson}
+                disabled={isDeletingLesson}
+                style={{
+                  backgroundColor: '#E02424',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '10px 20px',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: isDeletingLesson ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(224, 36, 36, 0.3)',
+                }}
+              >
+                <Trash2 size={16} />
+                <span>{isDeletingLesson ? 'Eliminando...' : 'Sí, eliminar lección'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -641,6 +1079,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   courseItemFooter: {
     marginTop: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   emptyCard: {
     padding: '48px 24px',

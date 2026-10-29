@@ -73,7 +73,7 @@ export class TutorController {
     @Request() req: any,
     @Body() dto: AnswerModuleEvaluationDto,
   ) {
-    return this.tutorService.answerModuleEvaluation(req.user.id, dto);
+    return this.tutorService.answerModuleEvaluation(req.user.id, dto, req.user?.role);
   }
 
   @Post('chat')

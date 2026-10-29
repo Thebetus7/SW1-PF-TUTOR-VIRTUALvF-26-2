@@ -1,5 +1,5 @@
 // backend/src/modules/tutor/dto/module-evaluation.dto.ts
-import { IsNotEmpty, IsUUID, IsInt, Min, IsString } from 'class-validator';
+import { IsNotEmpty, IsUUID, IsInt, Min, IsString, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { VisemeFrame } from './test-connection.dto';
 
@@ -45,6 +45,11 @@ export class AnswerModuleEvaluationDto {
   @IsString()
   @IsNotEmpty()
   userResponse: string;
+
+  @ApiProperty({ description: 'Indica si es una prueba técnica de simulación docente (sin registro de calificaciones)', required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isSimulation?: boolean;
 }
 
 export type AvatarEmotionType = 'explaining' | 'listening' | 'celebrating' | 'encouraging';
@@ -55,6 +60,7 @@ export interface AnswerModuleEvaluationResponseDto {
   visemes: VisemeFrame[];
   avatarEmotion: AvatarEmotionType;
   hasNextLesson: boolean;
+  isSimulation?: boolean;
   nextQuestion?: {
     lessonIndex: number;
     lessonTitle: string;
@@ -65,5 +71,6 @@ export interface AnswerModuleEvaluationResponseDto {
     scorePercentage: number;
     closingRemarks: string;
     attemptId?: string;
+    isSimulation?: boolean;
   };
 }

@@ -2,6 +2,7 @@
 import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { UpdateCourseDto } from './dto/update-course.dto';
 import { CourseStatus } from '@prisma/client';
 import { AnalyticsService } from '../analytics/analytics.service';
 
@@ -235,5 +236,64 @@ export class CoursesService {
         message: 'Curso eliminado físicamente al no registrar estudiantes inscritos',
       };
     }
+  }
+
+  /**
+   * Actualiza los datos generales de un curso (título, descripción, categoría).
+   * Requiere que el usuario autenticado sea el docente autor del curso.
+   */
+  async update(courseId: string, teacherId: string, dto: UpdateCourseDto) {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      include: { category: true },
+    });
+
+    if (!course) {
+      throw new NotFoundException(`Curso con ID ${courseId} no encontrado`);
+    }
+
+    if (course.teacherId !== teacherId) {
+      throw new ForbiddenException('No tienes permisos para modificar este curso');
+    }
+
+    let categoryId = course.categoryId;
+    if (dto.categoryName !== undefined) {
+      const catName = dto.categoryName ? dto.categoryName.trim() : 'General';
+      const category = await this.prisma.courseCategory.upsert({
+        where: { name: catName },
+        update: {},
+        create: {
+          name: catName,
+          description: `Categoría ${catName}`,
+        },
+      });
+      categoryId = category.id;
+    }
+
+    const updated = await this.prisma.course.update({
+      where: { id: courseId },
+      data: {
+        ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+        ...(dto.description !== undefined ? { description: dto.description.trim() } : {}),
+        ...(dto.categoryName !== undefined ? { categoryId } : {}),
+      },
+      include: {
+        category: true,
+        teacher: {
+          select: { id: true, name: true, email: true },
+        },
+        modules: true,
+      },
+    });
+
+    return {
+      id: updated.id,
+      title: updated.title,
+      description: updated.description,
+      status: updated.status,
+      category: updated.category?.name || 'General',
+      teacherName: updated.teacher?.name || 'Profesor Docente',
+      modules: updated.modules,
+    };
   }
 }

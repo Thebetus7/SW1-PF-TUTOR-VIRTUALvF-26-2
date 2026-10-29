@@ -2,6 +2,7 @@
 import { Injectable, NotFoundException, ForbiddenException, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
+import { UpdateLessonDto } from './dto/update-lesson.dto';
 
 @Injectable()
 export class LessonsService {
@@ -246,6 +247,114 @@ export class LessonsService {
     return {
       syncedCount: results.length,
       items: results,
+    };
+  }
+
+  /**
+   * Actualiza los datos didácticos de una lección y opcionalmente su formulario evaluativo.
+   */
+  async update(lessonId: string, teacherId: string, dto: UpdateLessonDto) {
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+      include: {
+        module: {
+          include: { course: true },
+        },
+        exams: true,
+      },
+    });
+
+    if (!lesson) {
+      throw new NotFoundException(`Lección con ID ${lessonId} no encontrada`);
+    }
+
+    if (lesson.module.course.teacherId !== teacherId) {
+      throw new ForbiddenException('No tienes permisos para modificar esta lección');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.lesson.update({
+        where: { id: lessonId },
+        data: {
+          title: dto.title ?? lesson.title,
+          videoUrl: dto.videoUrl ?? lesson.videoUrl,
+          contextText: dto.contextText ?? lesson.contextText,
+          downloadableUrl: dto.downloadableUrl !== undefined ? dto.downloadableUrl : lesson.downloadableUrl,
+          order: dto.order ?? lesson.order,
+        },
+      });
+
+      // Si se envió examForm, actualizar o reemplazar el formulario de examen
+      if (dto.examForm !== undefined) {
+        // Eliminar exámenes previos asociados a esta lección
+        await tx.exam.deleteMany({
+          where: { lessonId },
+        });
+
+        if (dto.examForm && dto.examForm.questions && dto.examForm.questions.length > 0) {
+          const exam = await tx.exam.create({
+            data: {
+              lessonId,
+              title: dto.examForm.title || `Evaluación de la Lección: ${dto.title || lesson.title}`,
+              passScore: 70.0,
+            },
+          });
+
+          for (const q of dto.examForm.questions) {
+            const question = await tx.question.create({
+              data: {
+                examId: exam.id,
+                text: q.text,
+                points: 1.0,
+              },
+            });
+
+            for (const opt of q.options) {
+              await tx.option.create({
+                data: {
+                  questionId: question.id,
+                  text: opt.text,
+                  isCorrect: opt.isCorrect,
+                },
+              });
+            }
+          }
+        }
+      }
+    });
+
+    return this.findOne(lessonId);
+  }
+
+  /**
+   * Elimina una lección asegurando la autoría del docente creador.
+   * Las relaciones asociadas (progresses, unlocks, exams, questions, options) se eliminan en cascada.
+   */
+  async remove(lessonId: string, teacherId: string) {
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+      include: {
+        module: {
+          include: { course: true },
+        },
+      },
+    });
+
+    if (!lesson) {
+      throw new NotFoundException(`Lección con ID ${lessonId} no encontrada`);
+    }
+
+    if (lesson.module.course.teacherId !== teacherId) {
+      throw new ForbiddenException('No tienes permisos para eliminar esta lección');
+    }
+
+    await this.prisma.lesson.delete({
+      where: { id: lessonId },
+    });
+
+    return {
+      message: `Lección "${lesson.title}" eliminada exitosamente`,
+      lessonId,
     };
   }
 }
