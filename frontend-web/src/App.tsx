@@ -170,6 +170,7 @@ export function App() {
         onOpenCatalog={() => {
           window.location.hash = '#/courses';
         }}
+        currentPath={currentHash}
       />
 
       {!user ? (
@@ -217,7 +218,7 @@ export function App() {
                   <span className="star-badge">⭐ {user.credits} Créditos Disponibles</span>
                 ) : (
                   <span className="star-badge" style={{ backgroundColor: 'var(--color-sky-soft)', color: 'var(--color-sky-deep)' }}>
-                    👨‍🏫 Perfil de Docente Creador
+                    Perfil Docente
                   </span>
                 )}
                 <span style={styles.planBadge}>Plan Freemium</span>
@@ -256,7 +257,7 @@ export function App() {
                     }}
                   >
                     <FolderPlus size={20} />
-                    <span>Gestionar Mis Cursos y Lecciones</span>
+                    <span>Gestionar Cursos</span>
                   </button>
                 )}
               </div>

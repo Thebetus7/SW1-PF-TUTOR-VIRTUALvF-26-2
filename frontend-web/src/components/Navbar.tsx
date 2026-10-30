@@ -1,6 +1,6 @@
 // frontend-web/src/components/Navbar.tsx
-import React from 'react';
-import { Sparkles, LogOut, GraduationCap, BookOpen } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, LogOut, GraduationCap, BookOpen, FolderPlus } from 'lucide-react';
 
 interface NavbarProps {
   user: {
@@ -12,9 +12,47 @@ interface NavbarProps {
   } | null;
   onLogout: () => void;
   onOpenCatalog?: () => void;
+  currentPath?: string;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenCatalog }) => {
+export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenCatalog, currentPath }) => {
+  const [activeHash, setActiveHash] = useState<string>(
+    currentPath || (typeof window !== 'undefined' ? window.location.hash || '#/courses' : '#/courses')
+  );
+
+  useEffect(() => {
+    if (currentPath) {
+      setActiveHash(currentPath);
+    }
+  }, [currentPath]);
+
+  useEffect(() => {
+    const handleHash = () => {
+      setActiveHash(window.location.hash || '#/courses');
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  const isTeacherActive = activeHash.startsWith('#/teacher');
+  const isCoursesActive = !isTeacherActive;
+
+  const getNavLinkStyle = (isActive: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    fontWeight: isActive ? 700 : 600,
+    color: isActive ? 'var(--color-sky-deep, #0284C7)' : 'var(--color-ink-muted, #64748B)',
+    backgroundColor: isActive ? 'var(--color-sky-soft, #E0F2FE)' : 'transparent',
+    textDecoration: 'none',
+    padding: '8px 14px',
+    borderRadius: '10px',
+    border: isActive ? '1px solid rgba(14, 165, 233, 0.3)' : '1px solid transparent',
+    transition: 'all 0.2s ease',
+    boxShadow: isActive ? '0 1px 3px rgba(14, 165, 233, 0.12)' : 'none',
+  });
+
   return (
     <header style={styles.header}>
       <div style={styles.navContainer}>
@@ -33,21 +71,30 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenCatalog })
         <div style={styles.actions}>
           {user ? (
             <>
-              {/* Enlaces Rápidos de Navegación */}
+              {/* Enlaces Rápidos de Navegación con Estado Activo Dinámico */}
               <div style={styles.navLinks}>
                 <a
                   href="#/courses"
-                  style={styles.navLink}
+                  style={getNavLinkStyle(isCoursesActive)}
+                  title="Explorar el catálogo de cursos didácticos"
                 >
-                  <BookOpen size={16} />
+                  <BookOpen
+                    size={16}
+                    color={isCoursesActive ? 'var(--color-sky-deep, #0284C7)' : 'var(--color-ink-muted, #64748B)'}
+                  />
                   <span>Cursos</span>
                 </a>
 
                 {user.role === 'TEACHER' && (
                   <a
                     href="#/teacher/courses"
-                    style={{ ...styles.navLink, color: 'var(--color-sky-deep)', fontWeight: 700 }}
+                    style={getNavLinkStyle(isTeacherActive)}
+                    title="Panel de administración de mis cursos y temarios"
                   >
+                    <FolderPlus
+                      size={16}
+                      color={isTeacherActive ? 'var(--color-sky-deep, #0284C7)' : 'var(--color-ink-muted, #64748B)'}
+                    />
                     <span>Mis Cursos Creados</span>
                   </a>
                 )}

@@ -175,11 +175,14 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
           'explaining'
         );
       } catch (err: any) {
-        const errorMsg = err.response?.data?.message || 'Error al iniciar la evaluación con el Docente Virtual.';
+        const errorMsg =
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          'Error al iniciar la evaluación con el Docente Virtual.';
         setDialogueHistory([
           {
             sender: 'tutor',
-            text: `Hubo un inconveniente: ${errorMsg}. Por favor verifica que el módulo tenga lecciones publicadas.`,
+            text: `Hubo un inconveniente: ${errorMsg}`,
           },
         ]);
         setPose('encouraging');

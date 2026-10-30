@@ -184,12 +184,15 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
       questionText,
       visemes,
       collectedContext: {
-        lessons: module.lessons.map((l) => ({
-          id: l.id,
-          order: l.order,
-          title: l.title,
-          contextSummary: l.contextText.substring(0, 150) + (l.contextText.length > 150 ? '...' : ''),
-        })),
+        lessons: module.lessons.map((l) => {
+          const text = l.contextText || 'Conceptos clave de la clase interactiva.';
+          return {
+            id: l.id,
+            order: l.order,
+            title: l.title,
+            contextSummary: text.substring(0, 150) + (text.length > 150 ? '...' : ''),
+          };
+        }),
       },
     };
   }
@@ -239,19 +242,28 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
     let evaluation = fallbackEvaluation;
 
     try {
-      const prompt = `Actúa como un Docente Virtual humano y pedagógico.
+      const prompt = `Actúa como un Docente Virtual humano, empático, justo y pedagógico.
 Módulo: "${module.title}".
 Lección evaluada (${dto.lessonIndex + 1} de ${totalLessons}): "${currentLesson.title}".
-Contexto pedagógico de referencia: "${currentLesson.contextText}".
+Contexto pedagógico oficial de la clase: "${currentLesson.contextText || 'Fundamentos explicados en el video interactivo'}".
 Respuesta dada por el estudiante: "${dto.userResponse}".
 
-Evalúa si la respuesta demuestra comprensión conceptual (sé motivador y justo).
-Determina:
-1. "isCorrect": boolean (true si comprende la idea principal, false si es evasiva o completamente errónea).
-2. "feedbackText": breve retroalimentación oral (máximo 2 oraciones cálidas).
-3. "avatarEmotion": "celebrating" (si acertó), "explaining" (si complementas), o "encouraging" (si debe reforzar).
+INSTRUCCIONES DE EVALUACIÓN:
+1. "isCorrect": boolean.
+   - true si el estudiante comprende el concepto esencial o la idea central expuesta en el contexto pedagógico.
+   - false si la respuesta es evasiva (ej: "no sé", "hola", respuestas vacías), inventada o contradice los fundamentos del tema.
 
-Responde ÚNICAMENTE en JSON con el formato:
+2. "feedbackText": Retroalimentación oral directa y pedagógica (2 a 3 oraciones):
+   - RECONOCIMIENTO ACTIVO: Demuestra siempre que leíste y entendiste lo que dijo el estudiante (por ejemplo: "Has mencionado que...", "Veo que asocias el tema con...", "Entiendo tu punto sobre...").
+   - SI ES CORRECTA (isCorrect=true): Felicítalo con entusiasmo y resalta por qué su razonamiento es acertado.
+   - SI ES INCORRECTA (isCorrect=false): Sé comprensivo y formativo. Aclara amablemente el error, explica el concepto correcto según el contexto pedagógico y dale un consejo didáctico para recordarlo.
+
+3. "avatarEmotion": Postura del avatar 3D:
+   - "celebrating": si la respuesta es correcta y demuestra dominio.
+   - "explaining": si la respuesta es acertada pero agregas una aclaración.
+   - "encouraging": si la respuesta es incorrecta o evasiva, para motivarlo a seguir aprendiendo.
+
+Responde ÚNICAMENTE en formato JSON:
 {
   "isCorrect": boolean,
   "feedbackText": string,

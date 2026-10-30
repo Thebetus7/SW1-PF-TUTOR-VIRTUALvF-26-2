@@ -6,7 +6,7 @@ import { VisemeFrame } from './test-connection.dto';
 export class StartModuleEvaluationDto {
   @ApiProperty({ description: 'ID del módulo de cuyas lecciones se recopila contexto', example: 'uuid-modulo' })
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   moduleId: string;
 }
 
@@ -33,7 +33,7 @@ export interface StartModuleEvaluationResponseDto {
 export class AnswerModuleEvaluationDto {
   @ApiProperty({ description: 'ID del módulo en evaluación', example: 'uuid-modulo' })
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   moduleId: string;
 
   @ApiProperty({ description: 'Índice de la lección evaluada (base 0)', example: 0 })
