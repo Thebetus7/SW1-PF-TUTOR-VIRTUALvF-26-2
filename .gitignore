@@ -24,12 +24,28 @@ lerna-debug.log*
 .env.local
 .env.*.local
 *.env
+*.env.*
 *.env.production
 *.env.development
 # Permitir siempre archivos de plantilla .env.example
 !.env.example
 !*/.env.example
 !*/*/.env.example
+
+# Credenciales y secretos serializados
+*.secret
+*.secrets
+*.credentials
+credentials.json
+credentials.*.json
+service-account*.json
+firebase-adminsdk*.json
+secrets.json
+secrets.*.json
+
+# Excepciones: plantillas sin valores sensibles
+!*.example
+!*.example.*
 
 # ---------------------------------------------------------------------
 # Compilación y Salidas de Build
@@ -70,6 +86,8 @@ frontend-mobile/android/
 *.key
 *.mobileprovision
 *.pem
+*.crt
+*.cer
 
 # ---------------------------------------------------------------------
 # Logs y Archivos Temporales de Runtime

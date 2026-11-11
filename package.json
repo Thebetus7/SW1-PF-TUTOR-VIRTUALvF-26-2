@@ -13,6 +13,9 @@
     "dev:mobile": "npm --prefix frontend-mobile run start",
     "test:backend": "npm --prefix backend run test:e2e",
     "build:backend": "npm --prefix backend run build",
-    "build:web": "npm --prefix frontend-web run build"
+    "build:web": "npm --prefix frontend-web run build",
+    "prod:up": "docker compose -f docker-compose.prod.yml up --build -d",
+    "prod:down": "docker compose -f docker-compose.prod.yml down",
+    "prod:logs": "docker compose -f docker-compose.prod.yml logs -f"
   }
 }

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skylearn - Flujo Visual de Despliegue Docker Integral en Azure</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --accent: #10b981;
+      --warning: #f59e0b;
+      --code-bg: #090d16;
+    }
+    body.light {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --accent: #059669;
+      --warning: #d97706;
+      --code-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px; transition: background 0.3s, color 0.3s; }
+    .header { display: flex; justify-content: space-between; align-items: center; max-width: 1100px; margin: 0 auto 32px auto; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .title-area h1 { font-size: 26px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+    .title-area p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+    .theme-toggle { background: var(--card-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .container { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+    
+    .credit-box { background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(16, 185, 129, 0.1)); border: 1px solid var(--primary); border-radius: 12px; padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .credit-item h4 { font-size: 13px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+    .credit-item p { font-size: 22px; font-weight: 800; color: var(--text); margin-top: 4px; }
+    .credit-item span { font-size: 13px; color: var(--accent); }
+
+    .step-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .step-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .step-badge { background: var(--primary); color: #000; font-weight: 800; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .step-title { font-size: 19px; font-weight: 700; color: var(--text); }
+    .step-desc { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+
+    .action-steps { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+    .action-steps li { display: flex; gap: 12px; font-size: 14px; line-height: 1.5; }
+    .action-steps li strong { color: var(--primary); }
+
+    .code-block { position: relative; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; margin-top: 10px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 13px; line-height: 1.4; color: var(--primary); }
+    .copy-btn { position: absolute; top: 10px; right: 10px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: 0.2s; }
+    .copy-btn:hover { background: var(--primary); color: #000; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title-area">
+      <h1>🐳 Despliegue en Azure con Docker Integral Paso a Paso</h1>
+      <p>Skylearn LMS • PostgreSQL, Backend NestJS y Frontend Web en Docker Compose • Sin apps móviles en servidor</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">🌓 Alternar Modo Claro / Oscuro</button>
+  </div>
+
+  <div class="container">
+
+    <!-- Tarjeta de Créditos de $200 USD -->
+    <div class="credit-box">
+      <div class="credit-item">
+        <h4>Tus Créditos de Azure</h4>
+        <p>$200.00 USD</p>
+        <span>Créditos promocionales</span>
+      </div>
+      <div class="credit-item">
+        <h4>Consumo Mensual VM</h4>
+        <p>~$15 a $25 USD</p>
+        <span>VM Linux B1ms o B2s (Todo en uno)</span>
+      </div>
+      <div class="credit-item">
+        <h4>Tiempo de Cobertura</h4>
+        <p>~8 a 13 Meses</p>
+        <span>Sin costos de servicios extra</span>
+      </div>
+      <div class="credit-item">
+        <h4>Ahorro Apagando Noches</h4>
+        <p>~$5.00 / mes</p>
+        <span>¡Máxima durabilidad de créditos!</span>
+      </div>
+    </div>
+
+    <!-- PASO 1 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge">1</div>
+        <div class="step-title">Crear Grupo de Recursos en portal.azure.com</div>
+      </div>
+      <div class="step-desc">
+        Un Grupo de Recursos es una carpeta virtual donde guardaremos la Máquina Virtual y su red.
+      </div>
+      <ul class="action-steps">
+        <li><strong>1.</strong> Entra a <strong>https://portal.azure.com</strong> con tu cuenta de Microsoft.</li>
+        <li><strong>2.</strong> En la barra de búsqueda escribe <code>Grupos de recursos</code> y haz clic.</li>
+        <li><strong>3.</strong> Clic en el botón <strong>+ Crear</strong>.</li>
+        <li><strong>4.</strong> Nombre: <code>rg-skylearn-prod</code>. Región: <code>(US) Este de EE. UU. (East US)</code>.</li>
+        <li><strong>5.</strong> Clic en <strong>Revisar y crear</strong> ➔ <strong>Crear</strong>.</li>
+      </ul>
+    </div>
+
+    <!-- PASO 2 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge">2</div>
+        <div class="step-title">Crear Máquina Virtual Linux (Ubuntu 24.04/22.04 LTS)</div>
+      </div>
+      <div class="step-desc">
+        El servidor en la nube donde correrá Docker con PostgreSQL, Backend y Frontend Web.
+      </div>
+      <ul class="action-steps">
+        <li><strong>1.</strong> En el buscador escribe <code>Máquinas virtuales</code> ➔ <strong>+ Crear</strong> ➔ <strong>Máquina virtual de Azure</strong>.</li>
+        <li><strong>2.</strong> Grupo de recursos: <code>rg-skylearn-prod</code>. Nombre de VM: <code>vm-skylearn-prod</code>.</li>
+        <li><strong>3.</strong> Imagen: <strong>Ubuntu Server 24.04 LTS (x64)</strong>. Tamaño: <strong>Standard_B2s</strong> (2 vCPU, 4 GiB RAM) o <strong>Standard_B1ms</strong>.</li>
+        <li><strong>4.</strong> Autenticación: Contraseña ➔ Usuario: <code>azureuser</code> y tu contraseña segura.</li>
+        <li><strong>5.</strong> Puertos de entrada públicos: Marca ☑️ <strong>SSH (22)</strong> y ☑️ <strong>HTTP (80)</strong>.</li>
+        <li><strong>6.</strong> Clic en <strong>Revisar y crear</strong> ➔ <strong>Crear</strong>. Al terminar, anota la <strong>IP pública</strong> asignada.</li>
+      </ul>
+    </div>
+
+    <!-- PASO 3 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge">3</div>
+        <div class="step-title">Conectarte por SSH e Instalar Docker en 1 Solo Comando</div>
+      </div>
+      <div class="step-desc">
+        Abre tu terminal en Windows (PowerShell) para conectarte al servidor y ejecutar el script oficial de Docker.
+      </div>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+# 1. Conectarte a la máquina virtual
+ssh azureuser@TU_IP_PUBLICA
+
+# 2. Instalar Docker y Docker Compose automáticamente
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+newgrp docker
+      </div>
+    </div>
+
+    <!-- PASO 4 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge">4</div>
+        <div class="step-title">Clonar el Repositorio y Levantar Todo el Stack</div>
+      </div>
+      <div class="step-desc">
+        Con un solo comando de Docker Compose, se levanta PostgreSQL con volumen persistente, Backend NestJS con auto-migración y Frontend Nginx en puerto 80.
+      </div>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+# 1. Clonar el repositorio
+git clone https://github.com/TU_USUARIO/TU_REPOSITORIO.git skylearn-prod
+cd skylearn-prod
+
+# 2. Configurar variables de entorno
+cp .env.prod.example .env
+
+# 3. LEVANTAR TODO EL STACK EN PRODUCCIÓN:
+docker compose -f docker-compose.prod.yml up --build -d
+      </div>
+    </div>
+
+    <!-- PASO 5 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge">5</div>
+        <div class="step-title">Verificar en Navegador y Conectar App Móvil</div>
+      </div>
+      <div class="step-desc">
+        Todo el sistema responde por el puerto estándar 80 gracias a Nginx.
+      </div>
+      <ul class="action-steps">
+        <li><strong>Frontend Web:</strong> Abre en tu navegador <code>http://TU_IP_PUBLICA/</code> (Usuarios demo listos).</li>
+        <li><strong>Swagger API Docs:</strong> Abre <code>http://TU_IP_PUBLICA/api/docs</code>.</li>
+        <li><strong>App Móvil Docente:</strong> Corre en el teléfono; solo pon <code>export const API_BASE_URL = 'http://TU_IP_PUBLICA/api/v1';</code> en <code>frontend-mobile/src/services/api.ts</code>.</li>
+      </ul>
+    </div>
+
+    <!-- PASO 6 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge">6</div>
+        <div class="step-title">Apagar y Reactivar la VM para Ahorrar Créditos</div>
+      </div>
+      <div class="step-desc">
+        Detén la máquina cuando no la uses para pausar el cómputo a $0.00/hora. Al iniciarla, Docker levanta todo automáticamente sin comandos adicionales.
+      </div>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+# Apagar la VM (Pausa facturación de cómputo):
+az vm deallocate --resource-group rg-skylearn-prod --name vm-skylearn-prod
+
+# Iniciar la VM (Los contenedores se levantan solos gracias a restart: unless-stopped):
+az vm start --resource-group rg-skylearn-prod --name vm-skylearn-prod
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+    }
+    function copyCode(btn) {
+      const block = btn.parentElement;
+      const text = block.innerText.replace('Copiar', '').trim();
+      navigator.clipboard.writeText(text).then(() => {
+        btn.innerText = '¡Copiado!';
+        setTimeout(() => { btn.innerText = 'Copiar'; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

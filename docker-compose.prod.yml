@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: skylearn-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-skylearn_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-securepassword123}
+      POSTGRES_DB: ${DB_NAME:-skylearn_db}
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    networks:
+      - skylearn-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: skylearn-backend-prod
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      PORT: 3000
+      DATABASE_URL: "postgresql://${DB_USER:-skylearn_admin}:${DB_PASSWORD:-securepassword123}@postgres:5432/${DB_NAME:-skylearn_db}?schema=public"
+      JWT_SECRET: ${JWT_SECRET:-clave_secreta_jwt_demo_para_pruebas_locales_123}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-demo_key}
+      GEMINI_DEFAULT_MODEL: ${GEMINI_DEFAULT_MODEL:-gemini-2.5-flash}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-mock}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-mock}
+      RUN_SEED: ${RUN_SEED:-true}
+    networks:
+      - skylearn-network
+
+  frontend:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+    container_name: skylearn-frontend-prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - skylearn-network
+
+volumes:
+  pgdata_prod:
+    driver: local
+
+networks:
+  skylearn-network:
+    driver: bridge

@@ -12,18 +12,32 @@ El workflow analiza el proyecto real, determina las herramientas y servicios nec
 ```text
 📁 [CARPETA_DESPLIEGUE]/
 ├── 📄 00_RESUMEN_GENERAL.md
-├── 📄 01_CONFIGURAR_PROYECTO.md
-├── 📄 02_CREAR_INFRAESTRUCTURA_[CLOUD].md
-├── 📄 03_INSTALAR_HERRAMIENTAS.md
-├── 📄 04_DESPLEGAR_Y_VERIFICAR.md
-├── 📄 05_ACTUALIZAR_PRODUCCION.md
-├── 📄 06_APAGAR_Y_REACTIVAR.md
-└── 🌐 07_FLUJO_VISUAL_DESPLIEGUE.html
+├── 📄 01_PASO_A_PASO_PORTAL_INTERFAZ.md  (o 01_CONFIGURAR_PROYECTO.md según la modalidad)
+├── 📄 02_CONFIGURAR_PROYECTO.md
+├── 📄 03_CREAR_INFRAESTRUCTURA_[CLOUD].md
+├── 📄 04_INSTALAR_HERRAMIENTAS.md
+├── 📄 05_DESPLEGAR_Y_VERIFICAR.md
+├── 📄 06_ACTUALIZAR_PRODUCCION.md
+├── 📄 07_APAGAR_Y_REACTIVAR.md
+└── 🌐 08_FLUJO_VISUAL_DESPLIEGUE.html (o 07 si no se desgaja el paso de interfaz)
 ```
 
 > [!NOTE]
-> Los archivos Markdown (`00` a `06`) constituyen la **documentación textual modular y navegable**, estructurada en tarjetas visuales de pasos con verificación y troubleshooting.
-> El archivo HTML (`07`) constituye la **representación visual interactiva en formato diagrama de flujo y componentes**, con soporte de Dark Mode y exploración paso a paso sin dependencias externas.
+> Los archivos Markdown constituyen la **documentación textual modular y navegable**, estructurada en tarjetas visuales de pasos con verificación y troubleshooting.
+> El archivo HTML constituye la **representación visual interactiva en formato diagrama de flujo y componentes**, con soporte de Dark Mode y exploración paso a paso sin dependencias externas.
+
+---
+
+# 0.1 MANDATO OBLIGATORIO: EXPLICACIÓN DETALLADA A NIVEL DE INTERFAZ DEL PROVEEDOR CLOUD (ONBOARDING DE PRINCIPIANTE)
+
+> [!IMPORTANT]
+> **REGLA DE ACCESIBILIDAD OPERATIVA (COMO SI NUNCA HUBIESE USADO EL SERVIDOR O CLOUD):**
+> En los primeros pasos de la suite de despliegue, la IA **DEBE** incluir obligatoriamente una sección o documento dedicado (`01_PASO_A_PASO_PORTAL_INTERFAZ.md` o integrado al inicio de la infraestructura) que guíe al usuario **a nivel de interfaz visual (GUI)** del proveedor (ej. Azure Portal, AWS Management Console, DigitalOcean Dashboard, GCP Console, cPanel, etc.):
+> - **Dónde iniciar sesión** con la URL directa y advertencia sobre cuentas con créditos o suscripciones activas.
+> - **Recorrido por la pantalla principal:** Explicar los elementos clave de navegación (barra de búsqueda universal, menús laterales, campana de notificaciones de creación).
+> - **Instrucciones de clic exactas:** Indicar paso a paso en qué botón exacto hacer clic (ej. `+ Crear`, `Aspectos básicos`, `Redes`), qué escribir textualmente en cada campo y qué valores seleccionar en desplegables.
+> - **Selección consciente de costos / capa gratuita:** Destacar explícitamente qué SKU, tamaño o plan seleccionar en la interfaz gráfica para no exceder cuotas gratuitas o créditos promocionales (ej. `Standard_B1ms`, `Basic B1`, `Free Tier`).
+> - **Puntos críticos de red y firewall en la GUI:** Enfatizar casillas de verificación esenciales como *"Permitir acceso público desde servicios internos"* o *"Agregar dirección IP de cliente actual"*.
 
 ---
 
@@ -238,9 +252,11 @@ flowchart TD
   - Verificación local previa mediante build de prueba.
 
 ### `02_CREAR_INFRAESTRUCTURA_[CLOUD].md`
-- **Misión:** Provisión de máquinas virtuales, redes y seguridad en el proveedor cloud.
+- **Misión:** Provisión de máquinas virtuales, contenedores, bases de datos, redes y seguridad en el proveedor cloud.
 - **Componentes Obligatorios:**
-  - Guía paso a paso de consola web o CLI del proveedor real (AWS Lightsail/EC2, DigitalOcean Droplet, GCP Compute, VPS, etc.).
+  - **Guía visual de clics en la consola / portal web** como si el usuario nunca hubiera entrado a esa nube: nombres exactos de menús, botones (`+ Crear`), pestañas y casillas.
+  - Guía paso a paso de consola web o CLI del proveedor real (Azure Portal/CLI, AWS Management Console/CLI, DigitalOcean Dashboard, GCP Compute, VPS, etc.).
+  - Selección de tiers económicos o capas gratuitas (ej. B1ms, B1, Free Tier) para optimizar créditos o presupuestos.
   - Configuración estricta de Firewall / Security Groups:
     | Puerto | Protocolo | Origen | Servicio | Justificación |
     |:---:|:---:|:---:|:---|:---|
