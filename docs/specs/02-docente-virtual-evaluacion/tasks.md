@@ -7,7 +7,7 @@
 ## 1. Resumen y Trazabilidad del Desglose
 
 - **Módulo**: `02-docente-virtual-evaluacion`
-- **Objetivo**: Implementación completa de extremo a extremo de la evaluación guiada por un Docente Virtual humanoide 2.5D en HTML5 Canvas con movimiento de brazos y labios, ciclo adaptativo de 1 pregunta por lección, entrada por voz (Web Speech API) y texto, modal de auditoría de datos recopilados, y verificación en vivo de Google Gemini.
+- **Objetivo**: Implementación completa de extremo a extremo de la evaluación guiada por un Docente Virtual humanoide 3D en WebGL (three.js) con movimiento de brazos y labios, ciclo adaptativo de 1 pregunta por lección, entrada por voz (Web Speech API) y texto, modal de auditoría de datos recopilados, y verificación en vivo de Google Gemini.
 - **Historias de Usuario Cubiertas**:
   - `HU-01` $\to$ `RF-01.1`, `RF-01.2`, `RF-01.3`, `RF-01.4` $\to$ `SC-01.1`, `SC-01.2`, `SC-01.3`
   - `HU-02` $\to$ `RF-02.1`, `RF-02.2`, `RF-02.3`, `RF-02.4` $\to$ `SC-02.1`, `SC-02.2`, `SC-02.3`
@@ -42,9 +42,11 @@
 
 ### Fase 3: Implementación de Frontend (Avatar Humano, Modal de Contexto y Flujo UI)
 *Objetivo: Construir los componentes visuales interactivos y conectarlos al temario del estudiante.*
-- [x] `T3.1` `[IMPL: Componente HumanAvatarCanvas]`: Crear `frontend-web/src/components/HumanAvatarCanvas.tsx` con renderizado en HTML5 Canvas de alta fidelidad:
-  - Cabeza estilizada con ojos expresivos, parpadeo periódico y boca sincronizada con visemas.
-  - Torso y cinemática de brazos articulados reactivos a las posturas: reposo (`idle`), gesticulación didáctica (`explaining`), atención con mano al mentón (`listening`), y celebración con pulgar arriba (`celebrating`).
+- [x] `T3.1` `[IMPL: Componente TutorAvatar3D]`: Crear `frontend-web/src/components/TutorAvatar3D.tsx` con un docente humano 3D procedural en WebGL (three.js, sin assets externos ni dependencias de red):
+  - Cabeza modelada en malla con ojos expresivos (esclerótica, iris, pupila, brillo), parpadeo periódico, cejas móviles, nariz, mejillas y boca de dos mallas sincronizada con visemas.
+  - Torso torneado con blazer, camisa en V y corbata; brazos con jerarquía hombro-codo-mano, pedestal y sombras PCF suaves.
+  - Cinemática de brazos interpolada (`MathUtils.damp`) reactiva a las posturas: reposo (`idle`), gesticulación didáctica (`explaining`), atención con mano al mentón (`listening`), celebración en V (`celebrating`) y ánimo abierto (`encouraging`).
+  - Degradación elegante: si el navegador no soporta WebGL se muestra un aviso no bloqueante; carga diferida con `React.lazy` (~510 kB en su propio chunk).
 - [x] `T3.2` `[IMPL: Componente CollectedContextModal]`: Crear `frontend-web/src/components/CollectedContextModal.tsx` para mostrar con total transparencia las lecciones del módulo, los textos de contexto (`contextText`) y los objetivos formativos que alimentan a la IA.
 - [x] `T3.3` `[IMPL: Integración en Temario CourseDetailPage]`: Actualizar `frontend-web/src/pages/CourseDetailPage.tsx`:
   - Renderizar al final de cada módulo la tarjeta "Evaluación Práctica con Docente Virtual".
@@ -52,7 +54,7 @@
   - Botón "Detalles de Recopilación" conectado a `CollectedContextModal`.
   - Manejo de fallback amigable si el módulo no posee lecciones (*Zero-State Invariant*).
 - [x] `T3.4` `[IMPL: Componente VirtualTutorEvaluatorModal]`: Crear `frontend-web/src/components/VirtualTutorEvaluatorModal.tsx`:
-  - Integrar `HumanAvatarCanvas` con animaciones sincronizadas al audio.
+  - Integrar `TutorAvatar3D` con animaciones sincronizadas al audio.
   - Botón discreto "Probar Conexión IA" con llamada en vivo a Google Gemini, audio instantáneo e insignia de estado.
   - Botón de micrófono intuitivo (1 clic) con Web Speech API (`webkitSpeechRecognition`), animación de ondas sonoras y conmutación automática de turnos.
   - Campo de texto alternativo para responder por escrito.

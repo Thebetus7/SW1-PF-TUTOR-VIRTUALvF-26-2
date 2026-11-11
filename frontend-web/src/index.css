@@ -141,6 +141,35 @@ input, textarea, select {
   border-color: var(--color-sky-bright);
 }
 
+/* Inputs Skylearn: borde suave, foco con anillo sky y altura táctil */
+.skylearn-input {
+  width: 100%;
+  min-height: 56px;
+  padding: 16px 20px;
+  font-family: var(--font-body);
+  font-size: 18px;
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.skylearn-input::placeholder {
+  color: var(--color-ink-subtle);
+}
+
+.skylearn-input:focus {
+  border-color: var(--color-sky);
+  box-shadow: 0 0 0 4px var(--color-sky-soft);
+}
+
+.skylearn-input:disabled {
+  color: var(--color-ink-faint);
+  cursor: not-allowed;
+}
+
 .star-badge {
   display: inline-flex;
   align-items: center;

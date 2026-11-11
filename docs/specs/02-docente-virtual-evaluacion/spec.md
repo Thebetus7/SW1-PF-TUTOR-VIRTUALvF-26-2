@@ -12,7 +12,7 @@
   - Incorporación en el temario del curso ([`CourseDetailPage.tsx`](file:///c:/EDBERTO/ULTIMO/SW1/PROYECTO%20FINAL/SW1-PF-TUTOR-VIRTUALvF-26-2/frontend-web/src/pages/CourseDetailPage.tsx#L191-L235)) de la opción final de "Evaluación Práctica con Docente Virtual" en cada módulo.
   - Exoneración total de consumo de créditos (0 créditos requeridos, acceso irrestricto sin bloqueo por paywall para fines de demostración técnica).
   - Modal informativo de auditoría ("Detalles de Recopilación") que expone las lecciones, los textos de contexto (`contextText`) y conceptos clave recopilados para formular las preguntas.
-  - Avatar humano estilizado 2.5D articulado con renderizado reactivo, expresiones faciales, parpadeo, sincronización labial (visemas) y movimiento cinemático de brazos/manos según el estado (explicando, escuchando, felicitando).
+  - Docente humano 3D estilizado (**WebGL / three.js**, personaje procedural sin assets externos) con expresiones faciales, parpadeo, sincronización labial (visemas) y movimiento cinemático de brazos/manos según el estado (explicando, escuchando, felicitando).
   - Interacción dual por voz (un solo clic para iniciar reconocimiento continuo/por turnos) y caja de texto para envío manual, con síntesis de voz sincronizada en cada respuesta.
   - Mecánica de evaluación progresiva: formulación de exactamente 1 pregunta por cada lección registrada en el módulo/curso, concluyendo con un dictamen pedagógico integrador.
   - Botón discreto de diagnóstico ("Probar Conexión IA") que envía una solicitud al backend para consultar a Google Gemini en vivo, generando una frase original única que el avatar pronuncia en voz alta para certificar la conexión activa con la API.
@@ -63,8 +63,8 @@
 
 ---
 
-### Requisitos de HU-02: Diseño y Cinemática del Avatar Humano 2.5D
-- **`RF-02.1` [Ubiquitous]**: El sistema deberá representar al Docente Virtual mediante una figura humana estilizada compuesta por rostro anatómico (ojos con parpadeo periódico, cejas móviles, boca con visemas) y torso con brazos articulados visibles.
+### Requisitos de HU-02: Diseño y Cinemática del Docente Virtual 3D
+- **`RF-02.1` [Ubiquitous]**: El sistema deberá representar al Docente Virtual mediante una **figura humana tridimensional renderizada en WebGL** compuesta por rostro anatómico (ojos con parpadeo periódico, cejas móviles, boca con visemas) y torso con brazos articulados visibles, con volumen, iluminación y sombras reales.
 - **`RF-02.2` [State-Driven]**: MIENTRAS el Docente Virtual esté verbalizando una pregunta o retroalimentación, el sistema deberá ejecutar una animación coordinada de gesticulación de brazos (manos abiertas explicativas) y visemas labiales sincronizados con el audio emitido.
 - **`RF-02.3` [State-Driven]**: MIENTRAS el estudiante esté hablando o el micrófono se encuentre activo, el sistema deberá situar los brazos del avatar en postura atenta de escucha (brazo en mentón o manos juntas relajadas) y mostrar un indicador visual de atención.
 - **`RF-02.4` [Event-Driven]**: CUANDO la respuesta del estudiante sea evaluada como correcta o aprobatoria, el sistema deberá activar una animación de celebración o pulgar arriba en los brazos del avatar junto con una expresión facial sonriente.

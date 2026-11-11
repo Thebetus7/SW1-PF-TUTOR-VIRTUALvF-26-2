@@ -10,6 +10,11 @@ export interface VisemeFrame {
   weight: number;
 }
 
+export interface SpeechSegment {
+  text: string;
+  pose: AvatarPoseType;
+}
+
 export interface CollectedLessonSummary {
   id: string;
   order: number;
@@ -66,6 +71,7 @@ export interface StartModuleEvaluationResponse {
   currentLessonTitle: string;
   questionText: string;
   visemes: VisemeFrame[];
+  speechSegments?: SpeechSegment[];
   collectedContext: {
     lessons: CollectedLessonSummary[];
   };
@@ -76,6 +82,7 @@ export interface AnswerModuleEvaluationResponse {
   feedbackText: string;
   visemes: VisemeFrame[];
   avatarEmotion: AvatarPoseType;
+  speechSegments?: SpeechSegment[];
   hasNextLesson: boolean;
   isSimulation?: boolean;
   nextQuestion?: {

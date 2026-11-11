@@ -13,6 +13,7 @@ import {
   AnswerModuleEvaluationDto,
   AnswerModuleEvaluationResponseDto,
   AvatarEmotionType,
+  SpeechSegmentDto,
 } from './dto/module-evaluation.dto';
 
 @Injectable()
@@ -175,6 +176,17 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
 
     const visemes = this.calculateVisemes(questionText);
 
+    const speechSegments: SpeechSegmentDto[] = [
+      {
+        text: `¡Bienvenido a la evaluación! Evaluaremos una pregunta clave por cada lección. Comenzamos con ${firstLesson.title}.`,
+        pose: 'explaining',
+      },
+      {
+        text: questionText,
+        pose: 'explaining',
+      },
+    ];
+
     return {
       moduleId: module.id,
       moduleTitle: module.title,
@@ -183,6 +195,7 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
       currentLessonTitle: firstLesson.title,
       questionText,
       visemes,
+      speechSegments,
       collectedContext: {
         lessons: module.lessons.map((l) => {
           const text = l.contextText || 'Conceptos clave de la clase interactiva.';
@@ -237,9 +250,20 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
       isCorrect: true,
       feedbackText: `¡Muy bien razonado sobre "${currentLesson.title}"! Has captado los conceptos esenciales.`,
       avatarEmotion: 'celebrating' as AvatarEmotionType,
+      speechSegments: [
+        {
+          text: `¡Muy bien razonado sobre "${currentLesson.title}"!`,
+          pose: 'celebrating' as AvatarEmotionType,
+        },
+        {
+          text: 'Has captado los conceptos esenciales.',
+          pose: 'explaining' as AvatarEmotionType,
+        },
+      ],
     };
 
     let evaluation = fallbackEvaluation;
+    let rawAiResponse: any = null;
 
     try {
       const prompt = `Actúa como un Docente Virtual humano, empático, justo y pedagógico.
@@ -248,12 +272,12 @@ Lección evaluada (${dto.lessonIndex + 1} de ${totalLessons}): "${currentLesson.
 Contexto pedagógico oficial de la clase: "${currentLesson.contextText || 'Fundamentos explicados en el video interactivo'}".
 Respuesta dada por el estudiante: "${dto.userResponse}".
 
-INSTRUCCIONES DE EVALUACIÓN:
+INSTRUCCIONES DE EVALUACIÓN Y GESTICULACIÓN PEDAGÓGICA:
 1. "isCorrect": boolean.
    - true si el estudiante comprende el concepto esencial o la idea central expuesta en el contexto pedagógico.
    - false si la respuesta es evasiva (ej: "no sé", "hola", respuestas vacías), inventada o contradice los fundamentos del tema.
 
-2. "feedbackText": Retroalimentación oral directa y pedagógica (2 a 3 oraciones):
+2. "feedbackText": Retroalimentación oral directa y pedagógica (2 a 3 oraciones en texto limpio sin etiquetas):
    - RECONOCIMIENTO ACTIVO: Demuestra siempre que leíste y entendiste lo que dijo el estudiante (por ejemplo: "Has mencionado que...", "Veo que asocias el tema con...", "Entiendo tu punto sobre...").
    - SI ES CORRECTA (isCorrect=true): Felicítalo con entusiasmo y resalta por qué su razonamiento es acertado.
    - SI ES INCORRECTA (isCorrect=false): Sé comprensivo y formativo. Aclara amablemente el error, explica el concepto correcto según el contexto pedagógico y dale un consejo didáctico para recordarlo.
@@ -263,14 +287,23 @@ INSTRUCCIONES DE EVALUACIÓN:
    - "explaining": si la respuesta es acertada pero agregas una aclaración.
    - "encouraging": si la respuesta es incorrecta o evasiva, para motivarlo a seguir aprendiendo.
 
+4. "speechSegments": Divide el feedbackText en oraciones secuenciales con la postura física para cada momento:
+   - "celebrating": cuando felicites o reconozcas un gran acierto.
+   - "explaining": cuando desarrolles la idea teórica o expliques el porqué.
+   - "encouraging": cuando motives a no rendirse o des un consejo didáctico.
+
 Responde ÚNICAMENTE en formato JSON:
 {
   "isCorrect": boolean,
   "feedbackText": string,
-  "avatarEmotion": "celebrating" | "explaining" | "encouraging"
+  "avatarEmotion": "celebrating" | "explaining" | "encouraging",
+  "speechSegments": [
+    { "text": string, "pose": "celebrating" | "explaining" | "encouraging" }
+  ]
 }`;
 
       const aiResponse = await this.geminiService.generateJson(prompt, () => fallbackEvaluation);
+      rawAiResponse = aiResponse;
       if (aiResponse.feedbackText) {
         evaluation = {
           isCorrect: Boolean(aiResponse.isCorrect),
@@ -278,10 +311,47 @@ Responde ÚNICAMENTE en formato JSON:
           avatarEmotion: (['celebrating', 'explaining', 'encouraging'].includes(aiResponse.avatarEmotion)
             ? aiResponse.avatarEmotion
             : 'explaining') as AvatarEmotionType,
+          speechSegments: [],
         };
       }
     } catch {
       this.logger.warn('Fallo o timeout de Gemini al evaluar respuesta, usando fallback.');
+    }
+
+    // Normalizar speechSegments para timeline dinámico
+    let speechSegments: SpeechSegmentDto[] = [];
+    if (
+      rawAiResponse?.speechSegments &&
+      Array.isArray(rawAiResponse.speechSegments) &&
+      rawAiResponse.speechSegments.length > 0
+    ) {
+      speechSegments = rawAiResponse.speechSegments
+        .filter((s: any) => s && typeof s.text === 'string' && s.text.trim().length > 0)
+        .map((s: any) => ({
+          text: s.text.trim(),
+          pose: (['celebrating', 'explaining', 'encouraging'].includes(s.pose)
+            ? s.pose
+            : evaluation.avatarEmotion) as AvatarEmotionType,
+        }));
+    }
+
+    if (speechSegments.length === 0) {
+      const sentences = evaluation.feedbackText
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      if (sentences.length > 1 && evaluation.avatarEmotion === 'celebrating') {
+        speechSegments = [
+          { text: sentences[0], pose: 'celebrating' },
+          ...sentences.slice(1).map((s) => ({ text: s, pose: 'explaining' as AvatarEmotionType })),
+        ];
+      } else {
+        speechSegments = sentences.map((s) => ({
+          text: s,
+          pose: evaluation.avatarEmotion,
+        }));
+      }
     }
 
     const visemes = this.calculateVisemes(evaluation.feedbackText);
@@ -369,6 +439,7 @@ Responde en JSON: { "questionText": string }`;
       feedbackText: evaluation.feedbackText,
       visemes,
       avatarEmotion: evaluation.avatarEmotion,
+      speechSegments,
       hasNextLesson,
       isSimulation: isSimulationMode,
       nextQuestion,

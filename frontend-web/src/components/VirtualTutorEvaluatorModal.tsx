@@ -1,5 +1,5 @@
 // frontend-web/src/components/VirtualTutorEvaluatorModal.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import {
   X,
   Mic,
@@ -15,16 +15,47 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
-import { HumanAvatarCanvas } from './HumanAvatarCanvas';
 import type {
   AvatarPoseType,
   VisemeShape,
   VisemeFrame,
+  SpeechSegment,
   FinalEvaluationSummary,
   TestConnectionResponse,
   StartModuleEvaluationResponse,
   AnswerModuleEvaluationResponse,
 } from '../types/tutor.types';
+
+const TutorAvatar3D = lazy(() => import('./TutorAvatar3D'));
+
+const AvatarLoader: React.FC = () => (
+  <div
+    style={{
+      width: '100%',
+      maxWidth: 360,
+      aspectRatio: '360 / 330',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '16px',
+      background: 'linear-gradient(160deg, #EFF6FF 0%, #DBEAFE 100%)',
+      color: 'var(--color-ink-muted)',
+      fontSize: '15px',
+      fontWeight: 600,
+    }}
+  >
+    Preparando al docente 3D…
+  </div>
+);
+
+/** Lenguaje natural para el estado del docente (evita jerga técnica en pantalla). */
+const POSE_LABELS: Record<AvatarPoseType, string> = {
+  idle: 'esperando tu respuesta',
+  explaining: 'explicando el tema',
+  listening: 'escuchándote con atención',
+  celebrating: 'felicitándote por tu avance',
+  encouraging: 'animándote a seguir',
+};
 
 interface VirtualTutorEvaluatorModalProps {
   moduleId: string;
@@ -97,41 +128,18 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
     };
   }, []);
 
-  // Reproducir visemas temporizados y voz con Web Speech API
-  const speakAndAnimate = (text: string, visemes: VisemeFrame[], targetPose: AvatarPoseType = 'explaining') => {
+  // Reproducir visemas temporizados, timeline de posturas y voz con Web Speech API
+  const speakAndAnimate = (
+    text: string,
+    visemes: VisemeFrame[],
+    targetPose: AvatarPoseType = 'explaining',
+    segments?: SpeechSegment[],
+  ) => {
     clearVisemeTimers();
     setIsSpeaking(true);
-    setPose(targetPose);
 
-    if (soundEnabled && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'es-ES';
-      utterance.rate = 1.02;
-      utterance.pitch = 1.05; // Voz docente profesional y cálida
-
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        setCurrentViseme('sil');
-        setPose('idle');
-      };
-
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-        setCurrentViseme('sil');
-        setPose('idle');
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } else {
-      // Si el audio está silenciado, simular fin según longitud
-      const durationMs = Math.min(6000, Math.max(1800, text.length * 55));
-      setTimeout(() => {
-        setIsSpeaking(false);
-        setCurrentViseme('sil');
-        setPose('idle');
-      }, durationMs);
-    }
+    const resolvedSegments: SpeechSegment[] =
+      segments && segments.length > 0 ? segments : [{ text, pose: targetPose }];
 
     // Programar visemas de labios
     visemes.forEach((frame) => {
@@ -146,6 +154,61 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
       setCurrentViseme('sil');
     }, lastTime + 250);
     visemeTimersRef.current.push(finalTimer);
+
+    if (soundEnabled && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+
+      let currentSegmentIdx = 0;
+      const playNextSegment = () => {
+        if (currentSegmentIdx >= resolvedSegments.length) {
+          setIsSpeaking(false);
+          setCurrentViseme('sil');
+          setPose('idle');
+          return;
+        }
+
+        const currentSeg = resolvedSegments[currentSegmentIdx];
+        setPose(currentSeg.pose);
+
+        const utterance = new SpeechSynthesisUtterance(currentSeg.text);
+        utterance.lang = 'es-ES';
+        utterance.rate = 1.02;
+        utterance.pitch = 1.05; // Voz docente profesional y cálida
+
+        utterance.onend = () => {
+          currentSegmentIdx++;
+          playNextSegment();
+        };
+
+        utterance.onerror = () => {
+          currentSegmentIdx++;
+          playNextSegment();
+        };
+
+        window.speechSynthesis.speak(utterance);
+      };
+
+      playNextSegment();
+    } else {
+      // Modo sin audio: temporizar dinámicamente el cambio de poses según la longitud de cada segmento
+      let accumulatedTime = 0;
+      resolvedSegments.forEach((seg) => {
+        const segDurationMs = Math.max(1400, seg.text.length * 60);
+        const timer = window.setTimeout(() => {
+          setPose(seg.pose);
+        }, accumulatedTime);
+        visemeTimersRef.current.push(timer);
+        accumulatedTime += segDurationMs;
+      });
+
+      const totalDuration = Math.max(accumulatedTime, lastTime + 300);
+      const endTimer = window.setTimeout(() => {
+        setIsSpeaking(false);
+        setCurrentViseme('sil');
+        setPose('idle');
+      }, totalDuration);
+      visemeTimersRef.current.push(endTimer);
+    }
   };
 
   // Cargar inicio de evaluación modular
@@ -172,7 +235,8 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
         speakAndAnimate(
           `¡Bienvenido a la evaluación! Evaluaremos una pregunta clave por cada lección. Comenzamos con ${data.currentLessonTitle}. ${data.questionText}`,
           data.visemes,
-          'explaining'
+          'explaining',
+          data.speechSegments
         );
       } catch (err: any) {
         const errorMsg =
@@ -322,8 +386,16 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
         isSimulation: Boolean(isSimulation),
       });
 
-      const { isCorrect, feedbackText, visemes, avatarEmotion, hasNextLesson, nextQuestion, finalSummary: summary } =
-        res.data;
+      const {
+        isCorrect,
+        feedbackText,
+        visemes,
+        avatarEmotion,
+        speechSegments,
+        hasNextLesson,
+        nextQuestion,
+        finalSummary: summary,
+      } = res.data;
 
       // Actualizar diálogo con retroalimentación del docente
       setDialogueHistory((prev) => [
@@ -335,7 +407,7 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
         },
       ]);
 
-      speakAndAnimate(feedbackText, visemes, avatarEmotion);
+      speakAndAnimate(feedbackText, visemes, avatarEmotion, speechSegments);
 
       if (isCorrect) {
         confetti({
@@ -377,7 +449,7 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
           onFinish(summary);
         }
       }
-    } catch (_err: any) {
+    } catch {
       const errReply = 'No pudimos validar la respuesta en este momento. Intenta nuevamente.';
       setDialogueHistory((prev) => [
         ...prev,
@@ -461,35 +533,37 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
 
         {/* Contenido Principal: Dos Columnas (Avatar y Diálogo) */}
         <div style={styles.mainGrid}>
-          {/* Columna Izquierda: Avatar Humanoide Articulado 2.5D */}
+          {/* Columna Izquierda: Docente virtual 3D (WebGL) */}
           <div style={styles.avatarColumn}>
             <div style={styles.avatarCard}>
-              <HumanAvatarCanvas
-                pose={pose}
-                viseme={currentViseme}
-                isSpeaking={isSpeaking}
-                isListening={isListening}
-                width={360}
-                height={330}
-              />
+              <Suspense fallback={<AvatarLoader />}>
+                <TutorAvatar3D
+                  pose={pose}
+                  viseme={currentViseme}
+                  isSpeaking={isSpeaking}
+                  isListening={isListening || pose === 'listening'}
+                  width={360}
+                  height={330}
+                />
+              </Suspense>
 
               {/* Indicador de Estado del Avatar */}
               <div style={styles.avatarStateBar}>
                 {isSpeaking && (
                   <span style={styles.stateSpeaking}>
                     <Sparkles size={13} />
-                    <span>El docente está hablando...</span>
+                    <span>El docente está hablando…</span>
                   </span>
                 )}
                 {isListening && (
                   <span style={styles.stateListening}>
                     <Mic size={13} />
-                    <span>Escuchando tu respuesta (brazo en mentón)...</span>
+                    <span>Escuchando tu respuesta…</span>
                   </span>
                 )}
                 {!isSpeaking && !isListening && (
                   <span style={styles.stateIdle}>
-                    <span>Postura del docente: <strong>{pose}</strong></span>
+                    <span>El docente está {POSE_LABELS[pose]}</span>
                   </span>
                 )}
               </div>
@@ -627,11 +701,26 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
                       <span>{isListening ? 'Escuchando...' : 'Hablar'}</span>
                     </button>
 
-                    {/* Input de Texto Alternativo */}
+                    {/* Input de Texto Alternativo con Escucha Interactiva */}
                     <input
                       type="text"
                       value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
+                      onChange={(e) => {
+                        setInputText(e.target.value);
+                        if (!isSpeaking && e.target.value.trim().length > 0) {
+                          setPose('listening');
+                        }
+                      }}
+                      onFocus={() => {
+                        if (!isSpeaking) {
+                          setPose('listening');
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!isSpeaking && !inputText.trim() && !isListening) {
+                          setPose('idle');
+                        }
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleSendAnswer();
                       }}

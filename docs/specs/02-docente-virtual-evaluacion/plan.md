@@ -7,15 +7,15 @@
 ## 1. Resumen Arquitectónico y Matriz de Componentes
 
 ### 1.1 Objetivo Técnico
-Implementar la infraestructura completa de extremo a extremo para la evaluación interactiva del estudiante mediante un Docente Virtual humanoide 2.5D. Esto abarca:
+Implementar la infraestructura completa de extremo a extremo para la evaluación interactiva del estudiante mediante un Docente Virtual humanoide 3D en WebGL. Esto abarca:
 1. Puntos de entrada en el temario del curso con auditoría de contexto y exención de créditos.
-2. Un renderizador cinemático en HTML5 Canvas con articulación de brazos, parpadeo y visemas sincronizados.
+2. Un personaje 3D procedural renderizado con **three.js** (mallas, materiales PBR, iluminación de estudio y sombras) con rig de brazos, parpadeo y visemas sincronizados.
 3. El ciclo evaluativo de una pregunta por cada lección del módulo por voz o texto con persistencia en `ExamAttempt`.
 4. Endpoint de verificación y diagnóstico en vivo con la API de Google Gemini.
 
 ### 1.2 Patrón Arquitectónico
 - **Backend**: Arquitectura modular NestJS por capas (Controladores $\to$ Servicios de Aplicación $\to$ Acceso a Datos con Prisma ORM $\to$ Integración con Gemini AI).
-- **Frontend**: Componentes modulares en React 18 con TypeScript estricto, Web Speech API para reconocimiento y síntesis de voz, y animación reactiva basada en `requestAnimationFrame` para la cinemática del avatar humano.
+- **Frontend**: Componentes modulares en React 19 con TypeScript estricto, Web Speech API para reconocimiento y síntesis de voz, y bucle de render 3D (`renderer.setAnimationLoop`) con interpolación amortiguada (`MathUtils.damp`) entre posturas y visemas.
 
 ### 1.3 Matriz de Capas y Componentes
 
@@ -23,7 +23,7 @@ Implementar la infraestructura completa de extremo a extremo para la evaluación
 | :--- | :--- | :--- |
 | **Presentación (Web)** | `frontend-web/src/pages/CourseDetailPage.tsx` | Fila del Docente Virtual en cada módulo, botón de inicio (0 créditos) y disparador del modal de contexto. |
 | **Presentación (Web)** | `frontend-web/src/components/CollectedContextModal.tsx` | Modal de auditoría que expone las lecciones, objetivos y textos (`contextText`) recopilados para la IA. |
-| **Presentación (Web)** | `frontend-web/src/components/HumanAvatarCanvas.tsx` | Renderizador en Canvas 2.5D del docente humano (torso, brazos articulados en estados explicativo/escucha/aprobación, ojos y boca sincronizada). |
+| **Presentación (Web)** | `frontend-web/src/components/TutorAvatar3D.tsx` | Docente humano 3D procedural en WebGL/three.js: pedestal, torso torneado, brazos con hombro-codo, cabeza con parpadeo, cejas y boca sincronizada a visemas. Se carga de forma diferida (`React.lazy`) en su propio chunk. |
 | **Presentación (Web)** | `frontend-web/src/components/VirtualTutorEvaluatorModal.tsx` | Vista modal/pantalla de la sesión evaluativa: botón de micrófono intuitivo, caja de texto, diálogo interactivo, botón "Probar Conexión IA" y resumen final. |
 | **Dominio & Casos de Uso** | `backend/src/modules/tutor/tutor.service.ts` | Orquestación pedagógica: extracción de lecciones, llamadas estructuradas a Gemini, cálculo de visemas y posturas, persistencia de intentos. |
 | **Controlador & HTTP** | `backend/src/modules/tutor/tutor.controller.ts` | Endpoints REST protegidos por JWT: prueba de conexión, inicio de evaluación y calificación de turnos. |
@@ -41,7 +41,7 @@ sequenceDiagram
     autonumber
     actor Estudiante as Estudiante / Evaluador
     participant UI as VirtualTutorEvaluatorModal
-    participant Canvas as HumanAvatarCanvas
+    participant Canvas as TutorAvatar3D (WebGL)
     participant API as TutorController (Backend)
     participant Service as TutorService
     participant Gemini as Google Gemini API
@@ -75,7 +75,7 @@ sequenceDiagram
     participant Detail as CourseDetailPage
     participant ModalContext as CollectedContextModal
     participant EvalUI as VirtualTutorEvaluatorModal
-    participant Canvas as HumanAvatarCanvas
+    participant Canvas as TutorAvatar3D (WebGL)
     participant API as TutorController
     participant Service as TutorService
     participant Gemini as Google Gemini API
@@ -320,22 +320,35 @@ export interface ITutorService {
 
 ---
 
-## 5. Diseño Cinemático del Avatar Humano 2.5D (`HumanAvatarCanvas.tsx`)
+## 5. Personaje 3D del Docente Virtual (`TutorAvatar3D.tsx`)
 
-### 5.1 Anatomía y Elementos Visuales
-El avatar humano se dibuja en un `<canvas>` de alta resolución ($400 \times 440\,\text{px}$) mediante trazado vectorial procedural con gradientes suaves y sombreado ergonómico:
+### 5.1 Motor y Enfoque
+El docente es un **personaje 3D procedural** construido íntegramente en código sobre **three.js** (sin assets `.glb`/`.vrm` ni descargas externas, por lo que viaja con el bundle y funciona offline):
+
+- `WebGLRenderer` con `antialias`, `alpha`, `PCFSoftShadowMap` y `NeutralToneMapping`.
+- `PerspectiveCamera` (fov 30) con paralaje sutil siguiendo el puntero, respetando `prefers-reduced-motion`.
+- Iluminación de estudio: `HemisphereLight` + `DirectionalLight` con sombras + relleno frío + `PointLight` de contorno.
+- Cuerpo: `LatheGeometry` con perfil torneado (comprimido en Z para dar profundidad humana), brazos con jerarquía hombro $\to$ codo $\to$ mano, y pedestal que ancla la figura.
+
+**Evidencia visual del render (captura real en WebGL):**
+
+| Reposo | Explicando | Escuchando | Celebrando |
+| :---: | :---: | :---: | :---: |
+| ![Reposo](../../assets/tutor-3d/pose-idle.png) | ![Explicando](../../assets/tutor-3d/pose-explaining.png) | ![Escuchando](../../assets/tutor-3d/pose-listening.png) | ![Celebrando](../../assets/tutor-3d/pose-celebrating.png) |
+
+### 5.2 Anatomía y Elementos Visuales
 1. **Torso y Vestimenta**:
-   - Camisa/suéter profesional moderno con cuello en V, hombros definidos y postura erguida.
+   - Blazer azul Skylearn torneado, panel de camisa en V generado con `BufferGeometry` a medida (anillos de ancho creciente) y corbata de acento solar alineada a la superficie real del pecho.
 2. **Cabeza y Rasgos Faciales**:
-   - Tono de piel cálido natural, cabello moderno con volumen y sombras.
-   - Ojos expresivos con iris detallado, pestañas, cejas que se elevan al preguntar o sonreír, y ciclo de parpadeo periódico cada 3-4 segundos.
-   - Boca con forma bezier y transición suave entre visemas (`sil`, `aa`, `E`, `ih`, `oh`, `ou`).
-3. **Cinemática de Brazos y Manos Articulados**:
-   - **Postura `'idle'`**: Brazos flexionados en reposo natural a la altura de la cintura.
-   - **Postura `'explaining'`**: Brazos en ademán oratorio activo, mano derecha levantada con palma abierta haciendo movimientos suaves de balanceo al ritmo de la voz.
-   - **Postura `'listening'`**: Brazo derecho flexionado llevando el índice/mentón en actitud de escucha atenta, cabeza ligeramente inclinada.
-   - **Postura `'celebrating'`**: Ambos brazos en alto con pulgar arriba y sonrisa amplia al validar un acierto del estudiante.
-   - **Postura `'encouraging'`**: Manos abiertas hacia el frente invitando a reflexionar de manera empática.
+   - Tono de piel cálido, casquete de cabello inclinado con flequillo, orejas, mejillas y nariz modelados en malla.
+   - Ojos con esclerótica, iris, pupila y brillo; el parpadeo se anima escalando el grupo ocular y ocurre cada 2.2–5.4 s.
+   - Boca en dos mallas complementarias: sonrisa (toro) y apertura (elipsoide) que se interpolan entre visemas (`sil`, `aa`, `E`, `ih`, `oh`, `ou`).
+3. **Cinemática de Brazos y Manos Articulados** (rotaciones objetivo interpoladas con `MathUtils.damp`):
+   - **Postura `'idle'`**: brazos relajados con una leve apertura hacia fuera.
+   - **Postura `'explaining'`**: brazo derecho adelantado con palma abierta y balanceo suave al ritmo de la voz.
+   - **Postura `'listening'`**: antebrazo flexionado llevando la mano a la altura del mentón, cabeza inclinada.
+   - **Postura `'celebrating'`**: ambos brazos en alto formando una V y cejas elevadas.
+   - **Postura `'encouraging'`**: ambas manos abiertas hacia el frente invitando a reflexionar.
 
 ---
 

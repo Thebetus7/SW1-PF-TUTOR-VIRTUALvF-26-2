@@ -17,6 +17,13 @@ export interface CollectedLessonSummary {
   contextSummary: string;
 }
 
+export type AvatarEmotionType = 'explaining' | 'listening' | 'celebrating' | 'encouraging';
+
+export interface SpeechSegmentDto {
+  text: string;
+  pose: AvatarEmotionType;
+}
+
 export interface StartModuleEvaluationResponseDto {
   moduleId: string;
   moduleTitle: string;
@@ -25,6 +32,7 @@ export interface StartModuleEvaluationResponseDto {
   currentLessonTitle: string;
   questionText: string;
   visemes: VisemeFrame[];
+  speechSegments?: SpeechSegmentDto[];
   collectedContext: {
     lessons: CollectedLessonSummary[];
   };
@@ -52,13 +60,12 @@ export class AnswerModuleEvaluationDto {
   isSimulation?: boolean;
 }
 
-export type AvatarEmotionType = 'explaining' | 'listening' | 'celebrating' | 'encouraging';
-
 export interface AnswerModuleEvaluationResponseDto {
   isCorrect: boolean;
   feedbackText: string;
   visemes: VisemeFrame[];
   avatarEmotion: AvatarEmotionType;
+  speechSegments?: SpeechSegmentDto[];
   hasNextLesson: boolean;
   isSimulation?: boolean;
   nextQuestion?: {

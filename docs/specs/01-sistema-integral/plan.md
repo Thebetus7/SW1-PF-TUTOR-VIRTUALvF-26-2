@@ -9,7 +9,7 @@
 ### 1.1 Objetivo Técnico del Ecosistema
 Implementar un ecosistema desacoplado compuesto por **3 proyectos independientes** bajo un repositorio unificado:
 1. **`backend/` (API REST Core)**: Servidor escalable y fuertemente tipado en **NestJS 10+**, **PostgreSQL 15+** y **Prisma ORM**, que centraliza la persistencia relacional, la orquestación con **Google Gemini API** (con fallback heurístico), la pasarela **Stripe Developer Mode** y los contratos JSON universales.
-2. **`frontend-web/` (Aplicación Web del Estudiante)**: Cliente web reactivo en **React (Vite) + TypeScript**, implementando el sistema de diseño **Skylearn** (tipografía Atkinson Hyperlegible, Hubot Sans, Big Friendly Buttons, Answer Tiles), reproductor de YouTube, onboarding con cuestionario de recomendación, paywall de Stripe y **Avatar 3D interactivo con visemas** (Three.js / React Three Fiber).
+2. **`frontend-web/` (Aplicación Web del Estudiante)**: Cliente web reactivo en **React (Vite) + TypeScript**, implementando el sistema de diseño **Skylearn** (tipografía Atkinson Hyperlegible, Hubot Sans, Big Friendly Buttons, Answer Tiles), reproductor de YouTube, onboarding con cuestionario de recomendación, paywall de Stripe y **Docente virtual 3D interactivo con visemas** (WebGL con **three.js**, personaje procedural cargado de forma diferida).
 3. **`frontend-mobile/` (Aplicación Móvil del Docente)**: Cliente móvil nativo en **React Native (Expo) + TypeScript** enfocado exclusivamente en el **Docente / Creador**, proveyendo el Dashboard de 3 KPIs, semáforo de cursos con lección crítica y recepción de **notificaciones push directas** ante nuevas inscripciones.
 
 ### 1.2 Topología de los 3 Proyectos Independientes
@@ -26,7 +26,7 @@ Implementar un ecosistema desacoplado compuesto por **3 proyectos independientes
 ├── frontend-web/                    # PROYECTO 2: React (Vite) - Cliente Estudiante
 │   ├── src/
 │   │   ├── components/skylearn/     # BigFriendlyButton, AnswerTile, StarBadge, ProgressBar
-│   │   ├── components/avatar3d/     # Canvas 3D con Three.js y sincronización de visemas
+│   │   ├── components/TutorAvatar3D.tsx  # Docente 3D en WebGL (three.js) con visemas
 │   │   ├── pages/                   # Onboarding, Quiz, Cursos, Lección (YouTube), Exámenes, Checkout
 │   │   └── services/api.ts          # Cliente Axios tipado contra el backend
 │   └── package.json
