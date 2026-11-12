@@ -1,4 +1,4 @@
-# 🐳 02: Configuración de Contenedores Docker y Proyecto
+﻿# 🐳 02: Configuración de Contenedores Docker y Proyecto
 
 Este documento detalla la arquitectura de contenedores del proyecto:
 1. **PostgreSQL 16 Alpine:** Base de datos relacional con volumen persistente.
@@ -189,3 +189,4 @@ Y para verificar el estado de los 3 contenedores:
 ```bash
 docker compose -f docker-compose.prod.yml ps
 ```
+

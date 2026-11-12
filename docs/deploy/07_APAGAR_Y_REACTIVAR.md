@@ -1,4 +1,4 @@
-# ⏸️ 07: Apagar y Reactivar para Maximizar los Créditos ($200 USD)
+﻿# ⏸️ 07: Apagar y Reactivar para Maximizar los Créditos ($200 USD)
 
 Microsoft Azure cobra el cómputo de la Máquina Virtual por cada segundo que está en estado `En ejecución`.  
 Para que tus **$200 USD de crédito te duren muchos meses**, puedes detener la máquina virtual durante la noche o cuando no estés realizando demostraciones.
@@ -48,3 +48,4 @@ Azure Portal te permite configurar una regla para que la máquina virtual se apa
 3. Activa el interruptor en **Habilitado**.
 4. Selecciona la hora (ej. `21:00:00`) y tu zona horaria local.
 5. Haz clic en **Guardar**.
+

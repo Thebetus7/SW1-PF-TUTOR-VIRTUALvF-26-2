@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -124,7 +124,7 @@
         <li><strong>1.</strong> En el buscador escribe <code>Máquinas virtuales</code> ➔ <strong>+ Crear</strong> ➔ <strong>Máquina virtual de Azure</strong>.</li>
         <li><strong>2.</strong> Grupo de recursos: <code>rg-skylearn-prod</code>. Nombre de VM: <code>vm-skylearn-prod</code>.</li>
         <li><strong>3.</strong> Imagen: <strong>Ubuntu Server 24.04 LTS (x64)</strong>. Tamaño: <strong>Standard_B2s</strong> (2 vCPU, 4 GiB RAM) o <strong>Standard_B1ms</strong>.</li>
-        <li><strong>4.</strong> Autenticación: Contraseña ➔ Usuario: <code>azureuser</code> y tu contraseña segura.</li>
+        <li><strong>4.</strong> Autenticación: Contraseña ➔ Usuario: <code>ubuntu</code> y tu contraseña segura.</li>
         <li><strong>5.</strong> Puertos de entrada públicos: Marca ☑️ <strong>SSH (22)</strong> y ☑️ <strong>HTTP (80)</strong>.</li>
         <li><strong>6.</strong> Clic en <strong>Revisar y crear</strong> ➔ <strong>Crear</strong>. Al terminar, anota la <strong>IP pública</strong> asignada.</li>
       </ul>
@@ -142,7 +142,7 @@
       <div class="code-block">
         <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
 # 1. Conectarte a la máquina virtual
-ssh azureuser@TU_IP_PUBLICA
+ssh ubuntu@TU_IP_PUBLICA
 
 # 2. Instalar Docker y Docker Compose automáticamente
 curl -fsSL https://get.docker.com | sudo sh
@@ -226,3 +226,4 @@ az vm start --resource-group rg-skylearn-prod --name vm-skylearn-prod
   </script>
 </body>
 </html>
+

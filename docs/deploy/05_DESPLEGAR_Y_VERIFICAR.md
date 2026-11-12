@@ -1,4 +1,4 @@
-# 🚀 05: Desplegar y Verificar en Producción
+﻿# 🚀 05: Desplegar y Verificar en Producción
 
 Este documento detalla el procedimiento exacto para clonar, configurar y levantar los contenedores en el servidor, seguido de la lista de chequeo de verificación funcional.
 
@@ -104,3 +104,4 @@ Para conectarla con este servidor de Azure:
    - **Correo:** `teacher@test.com`
    - **Contraseña:** `Password123!`
 5. Podrás ver los 3 KPIs del dashboard docente y el estado del semáforo de alumnos consumiendo datos reales de producción.
+

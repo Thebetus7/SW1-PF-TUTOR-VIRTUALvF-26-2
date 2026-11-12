@@ -1,4 +1,4 @@
-# 🛠️ 04: Instalar Herramientas (Docker & Docker Compose en Linux)
+﻿# 🛠️ 04: Instalar Herramientas (Docker & Docker Compose en Linux)
 
 Para ejecutar el proyecto en el servidor de producción, la Máquina Virtual Linux solo necesita tener instalados **Git** y **Docker con Docker Compose**.
 
@@ -8,7 +8,7 @@ Para ejecutar el proyecto en el servidor de producción, la Máquina Virtual Lin
 
 Conéctate por SSH a tu servidor:
 ```bash
-ssh azureuser@TU_IP_PUBLICA
+ssh ubuntu@TU_IP_PUBLICA
 ```
 
 Y ejecuta estos comandos para instalar Docker mediante el script oficial de Docker:
@@ -44,3 +44,4 @@ Docker Compose version v2.x.x
 Para administrar la máquina virtual no necesitas instalar nada complejo:
 - **Windows:** Puedes usar **PowerShell**, **Windows Terminal** o el cliente SSH nativo que viene integrado en Windows 10/11 (`ssh`).
 - **Navegador Web:** Puedes usar Google Chrome, Microsoft Edge, Safari o Firefox para verificar la aplicación en `http://TU_IP_PUBLICA/`.
+

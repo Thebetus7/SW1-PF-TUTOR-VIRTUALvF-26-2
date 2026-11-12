@@ -1,4 +1,4 @@
-# 🔄 06: Actualizar Producción (Zero-Downtime y Rebuild Rápido)
+﻿# 🔄 06: Actualizar Producción (Zero-Downtime y Rebuild Rápido)
 
 Cuando realices mejoras en el código del Backend o Frontend y hagas push a tu repositorio de GitHub, actualiza el servidor de producción siguiendo estos sencillos pasos.
 
@@ -9,7 +9,7 @@ Cuando realices mejoras en el código del Backend o Frontend y hagas push a tu r
 Conéctate por SSH a la máquina virtual:
 
 ```bash
-ssh azureuser@TU_IP_PUBLICA
+ssh ubuntu@TU_IP_PUBLICA
 cd skylearn-prod
 ```
 
@@ -46,3 +46,4 @@ Y limpia imágenes antiguas huérfanas para ahorrar espacio en disco:
 ```bash
 docker image prune -f
 ```
+

@@ -1,4 +1,4 @@
-# 📘 00: Resumen General y Arquitectura de Despliegue en Microsoft Azure con Docker Integral
+﻿# 📘 00: Resumen General y Arquitectura de Despliegue en Microsoft Azure con Docker Integral
 
 > **Entorno:** Producción Cloud  
 > **Proveedor Cloud:** Microsoft Azure (Optimizado para Suscripción con $200 USD de Crédito)  
@@ -90,3 +90,4 @@ Al unificar todo el stack (PostgreSQL, Backend y Frontend Web) en una sola Máqu
 
 > [!TIP]
 > Si apagas la máquina virtual cuando no la estés usando o fuera de horarios de prueba (como se explica en `07_APAGAR_Y_REACTIVAR.md`), el cómputo se pausa a **$0.00 USD/hora**, haciendo que tus $200 USD duren prácticamente todo el año académico.
+

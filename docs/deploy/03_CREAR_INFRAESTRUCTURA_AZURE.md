@@ -1,4 +1,4 @@
-# ☁️ 03: Crear Infraestructura en Azure (Azure CLI para Máquina Virtual Docker)
+﻿# ☁️ 03: Crear Infraestructura en Azure (Azure CLI para Máquina Virtual Docker)
 
 Este documento complementa la guía visual del Portal (`01_PASO_A_PASO_AZURE_PORTAL_INTERFAZ.md`) proporcionando los comandos equivalentes en **Azure CLI (PowerShell / Bash)** para aprovisionar la Máquina Virtual Linux que hospedará el stack Docker completo.
 
@@ -29,7 +29,7 @@ Define las variables para reutilizarlas en los comandos:
 $RG = "rg-skylearn-prod"
 $LOCATION = "eastus"
 $VM_NAME = "vm-skylearn-prod"
-$ADMIN_USER = "azureuser"
+$ADMIN_USER = "ubuntu"
 $VM_SIZE = "Standard_B2s"   # 2 vCPU, 4 GiB RAM (~$25/mes) o Standard_B1ms (~$15/mes)
 ```
 
@@ -67,7 +67,8 @@ az vm list-ip-addresses --resource-group $RG --name $VM_NAME --output table
 ## 4. Conectarte a la Máquina Virtual
 
 ```powershell
-ssh azureuser@<IP_PUBLICA_OBTENIDA>
+ssh ubuntu@<IP_PUBLICA_OBTENIDA>
 ```
 
 Una vez dentro, continúa con la instalación de Docker y la ejecución de Docker Compose como se describe en `04_INSTALAR_HERRAMIENTAS.md` y `05_DESPLEGAR_Y_VERIFICAR.md`.
+

@@ -1,4 +1,4 @@
-# 🧭 01: Guía Visual para Principiantes — Cómo Moverte en Azure Portal Paso a Paso (Stack Dockerizado Integral)
+﻿# 🧭 01: Guía Visual para Principiantes — Cómo Moverte en Azure Portal Paso a Paso (Stack Dockerizado Integral)
 
 > Si es la **primera vez que abres Microsoft Azure**, esta guía te llevará de la mano haciendo clic en cada botón exacto de la pantalla sin perderte.  
 > Todo el ecosistema de producción (**PostgreSQL**, **Backend NestJS** y **Frontend Web React**) corre dockerizado de forma integral dentro de una **Máquina Virtual Linux en Azure**; la app móvil (`frontend-mobile`) no se despliega en el servidor ya que es un cliente móvil que los usuarios ejecutan en sus teléfonos.
@@ -67,7 +67,7 @@ En este servidor se ejecutará Docker Compose con los 3 contenedores: **PostgreS
      - *(Alternativa mínima económica: Standard_B1ms con 1 vCPU y 2 GiB RAM)*.
    - **Tipo de autenticación:** 
      - Selecciona **Contraseña** (Password) para máxima facilidad:
-       - **Nombre de usuario:** `azureuser`
+       - **Nombre de usuario:** `ubuntu`
        - **Contraseña:** Crea una contraseña segura (ej. `Skylearn2026!UbuntuPass`) y anótala.
    - **Reglas de puertos de entrada:**
      - En *Puertos de entrada públicos*, marca **Permitir los puertos seleccionados**.
@@ -90,13 +90,13 @@ En este servidor se ejecutará Docker Compose con los 3 contenedores: **PostgreS
 Abre tu terminal habitual en Windows (PowerShell, CMD o Windows Terminal):
 
 ```powershell
-# Reemplaza azureuser con tu usuario y la IP con la IP pública de tu VM
-ssh azureuser@20.120.45.67
+# Reemplaza ubuntu con tu usuario y la IP con la IP pública de tu VM
+ssh ubuntu@20.120.45.67
 ```
 
 - Escribe `yes` cuando te pregunte si confías en la huella digital del host (*fingerprint*).
 - Ingresa la contraseña que definiste en el Paso 3.
-- ¡Listo! Verás el prompt de bienvenida verde de Ubuntu: `azureuser@vm-skylearn-prod:~$`.
+- ¡Listo! Verás el prompt de bienvenida verde de Ubuntu: `ubuntu@vm-skylearn-prod:~$`.
 
 ---
 
@@ -177,3 +177,4 @@ Para conectarla con este servidor de producción:
 2. Actualiza la URL base con la IP pública de tu servidor de Azure:  
    `export const API_BASE_URL = 'http://TU_IP_PUBLICA/api/v1';`
 3. ¡Listo! La app móvil consumirá directamente la API pública servida por Nginx en el puerto 80 sin requerir ningún contenedor adicional en el servidor.
+
