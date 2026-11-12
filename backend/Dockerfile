@@ -15,6 +15,7 @@ RUN npm install
 COPY . .
 
 # Generar cliente de Prisma y compilar NestJS
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres?schema=public"
 RUN npx prisma generate
 RUN npm run build
 
