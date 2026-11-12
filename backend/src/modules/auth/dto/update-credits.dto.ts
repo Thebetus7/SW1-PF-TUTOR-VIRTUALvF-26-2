@@ -11,3 +11,4 @@ export class UpdateCreditsDto {
   @Min(0, { message: 'El balance de créditos no puede ser negativo' })
   balance: number;
 }
+
