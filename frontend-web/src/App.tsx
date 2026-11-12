@@ -7,6 +7,7 @@ import { RecommendationQuiz } from './components/RecommendationQuiz';
 import { PaywallModal } from './components/PaywallModal';
 import { CourseDetailPage } from './pages/CourseDetailPage';
 import { TeacherCourseManager } from './pages/TeacherCourseManager';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { api } from './services/api';
 import { Compass, BookOpen, ArrowRight, FolderPlus, CheckCircle2 } from 'lucide-react';
 
@@ -78,6 +79,17 @@ export function App() {
           isEnrolled: false,
         },
       ]);
+    }
+  };
+
+  const handleAuthSuccess = (userData: UserData) => {
+    setUser(userData);
+    if (userData.role === 'ADMIN') {
+      window.location.hash = '#/admin';
+    } else if (userData.role === 'TEACHER') {
+      window.location.hash = '#/teacher/courses';
+    } else {
+      window.location.hash = '#/courses';
     }
   };
 
@@ -174,7 +186,27 @@ export function App() {
       />
 
       {!user ? (
-        <AuthPage onAuthSuccess={(userData) => setUser(userData)} />
+        <AuthPage onAuthSuccess={handleAuthSuccess} />
+      ) : (mainSegment === 'admin' || (user.role === 'ADMIN' && mainSegment !== 'courses' && mainSegment !== 'lessons')) ? (
+        /* VISTA: PANEL DE ADMINISTRACIÓN Y CONTROL DE CRÉDITOS */
+        <AdminDashboardPage
+          onCreditsModified={() => {
+            const savedUser = localStorage.getItem('user_data');
+            if (savedUser) {
+              try {
+                const parsed = JSON.parse(savedUser);
+                api.get('/admin/users').then((res) => {
+                  const current = res.data.find((u: any) => u.id === parsed.id);
+                  if (current) {
+                    const updated = { ...parsed, credits: current.credits };
+                    setUser(updated);
+                    localStorage.setItem('user_data', JSON.stringify(updated));
+                  }
+                }).catch(() => {});
+              } catch {}
+            }
+          }}
+        />
       ) : mainSegment === 'lessons' && activeLesson ? (
         /* VISTA: VISOR DE LECCIÓN */
         <LessonViewer

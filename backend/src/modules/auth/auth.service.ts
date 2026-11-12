@@ -1,5 +1,5 @@
 // backend/src/modules/auth/auth.service.ts
-import { Injectable, ConflictException, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, NotFoundException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
@@ -149,6 +149,52 @@ export class AuthService {
       success: true,
       message: 'Datos demo restablecidos exitosamente a su configuración inicial con 3 créditos',
       restoredUsers: demoUsers.map((u) => u.email),
+    };
+  }
+
+  async listUsersForAdmin() {
+    const users = await this.prisma.user.findMany({
+      include: {
+        creditAccount: true,
+        subscription: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      credits: u.creditAccount?.balance ?? 0,
+      subscriptionStatus: u.subscription?.status ?? 'INACTIVE',
+      createdAt: u.createdAt,
+    }));
+  }
+
+  async updateUserCredits(userId: string, balance: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${userId} no encontrado.`);
+    }
+
+    const updatedAccount = await this.prisma.creditAccount.upsert({
+      where: { userId },
+      update: { balance },
+      create: { userId, balance },
+    });
+
+    this.logger.log(`Créditos actualizados para ${user.email}: ${updatedAccount.balance} créditos`);
+
+    return {
+      success: true,
+      message: `Balance actualizado a ${updatedAccount.balance} créditos exitosamente`,
+      userId,
+      email: user.email,
+      balance: updatedAccount.balance,
     };
   }
 }

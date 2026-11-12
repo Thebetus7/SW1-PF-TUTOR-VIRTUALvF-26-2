@@ -45,13 +45,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   };
 
   // Botón de ayuda para pruebas rápidas
-  const handleDemoFill = (demoRole: 'student' | 'teacher') => {
+  const handleDemoFill = (demoRole: 'student' | 'teacher' | 'admin') => {
     if (demoRole === 'student') {
       setEmail('student@test.com');
       setPassword('Password123!');
       setIsLogin(true);
-    } else {
+    } else if (demoRole === 'teacher') {
       setEmail('teacher@test.com');
+      setPassword('Password123!');
+      setIsLogin(true);
+    } else {
+      setEmail('admin@test.com');
       setPassword('Password123!');
       setIsLogin(true);
     }
@@ -225,6 +229,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               style={styles.demoBtn}
             >
               📚 Docente Demo
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDemoFill('admin')}
+              style={{
+                ...styles.demoBtn,
+                borderColor: 'rgba(234, 88, 12, 0.4)',
+                backgroundColor: '#FFF7ED',
+                color: '#C2410C',
+              }}
+            >
+              🛡️ Administrador Demo
             </button>
           </div>
         </div>

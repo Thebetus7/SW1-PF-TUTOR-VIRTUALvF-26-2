@@ -1,6 +1,6 @@
 // frontend-web/src/components/Navbar.tsx
 import React, { useState, useEffect } from 'react';
-import { Sparkles, LogOut, GraduationCap, BookOpen, FolderPlus } from 'lucide-react';
+import { Sparkles, LogOut, GraduationCap, BookOpen, FolderPlus, ShieldCheck } from 'lucide-react';
 
 interface NavbarProps {
   user: {
@@ -35,7 +35,8 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenCatalog, c
   }, []);
 
   const isTeacherActive = activeHash.startsWith('#/teacher');
-  const isCoursesActive = !isTeacherActive;
+  const isAdminActive = activeHash.startsWith('#/admin');
+  const isCoursesActive = !isTeacherActive && !isAdminActive;
 
   const getNavLinkStyle = (isActive: boolean): React.CSSProperties => ({
     display: 'flex',
@@ -98,6 +99,20 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenCatalog, c
                     <span>Mis Cursos Creados</span>
                   </a>
                 )}
+
+                {user.role === 'ADMIN' && (
+                  <a
+                    href="#/admin"
+                    style={getNavLinkStyle(isAdminActive)}
+                    title="Panel de control administrativo y gestión de créditos"
+                  >
+                    <ShieldCheck
+                      size={16}
+                      color={isAdminActive ? 'var(--color-sky-deep, #0284C7)' : 'var(--color-ink-muted, #64748B)'}
+                    />
+                    <span>Panel Admin (Créditos)</span>
+                  </a>
+                )}
               </div>
 
               {/* Badge de Créditos para Estudiante */}
@@ -110,7 +125,12 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenCatalog, c
 
               {/* Rol Badge */}
               <div style={styles.roleTag}>
-                {user.role === 'TEACHER' ? (
+                {user.role === 'ADMIN' ? (
+                  <>
+                    <ShieldCheck size={16} color="#EA580C" />
+                    <span style={{ color: '#C2410C', fontWeight: 700 }}>Admin</span>
+                  </>
+                ) : user.role === 'TEACHER' ? (
                   <>
                     <BookOpen size={16} color="var(--color-sky-deep)" />
                     <span>Docente</span>

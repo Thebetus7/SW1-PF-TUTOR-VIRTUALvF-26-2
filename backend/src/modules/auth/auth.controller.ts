@@ -1,9 +1,10 @@
 // backend/src/modules/auth/auth.controller.ts
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Get, Patch, Body, Param, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateCreditsDto } from './dto/update-credits.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/guards/roles.decorator';
@@ -43,4 +44,31 @@ export class AuthController {
   async resetDemoData() {
     return this.authService.resetDemoData();
   }
+
+  @Get('admin/users')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar todos los usuarios y sus créditos para administración' })
+  @ApiResponse({ status: 200, description: 'Lista de usuarios recuperada exitosamente' })
+  @ApiResponse({ status: 403, description: 'Prohibido: se requiere rol ADMIN' })
+  async listUsers() {
+    return this.authService.listUsersForAdmin();
+  }
+
+  @Patch('admin/users/:id/credits')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Modificar manualmente los créditos de un usuario (para desarrollo/pruebas)' })
+  @ApiParam({ name: 'id', description: 'ID del usuario a modificar' })
+  @ApiResponse({ status: 200, description: 'Créditos actualizados exitosamente' })
+  @ApiResponse({ status: 403, description: 'Prohibido: se requiere rol ADMIN' })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  async updateCredits(@Param('id') id: string, @Body() dto: UpdateCreditsDto) {
+    return this.authService.updateUserCredits(id, dto.balance);
+  }
 }
+
