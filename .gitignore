@@ -38,10 +38,12 @@ lerna-debug.log*
 *.credentials
 credentials.json
 credentials.*.json
+*credentials*.json
 service-account*.json
 firebase-adminsdk*.json
 secrets.json
 secrets.*.json
+*secret*.json
 
 # Excepciones: plantillas sin valores sensibles
 !*.example
