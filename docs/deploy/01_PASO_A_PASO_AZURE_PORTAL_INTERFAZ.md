@@ -10,7 +10,7 @@
 2. [Paso 2: Crear el Grupo de Recursos (Carpeta Contenedora)](#paso-2-crear-el-grupo-de-recursos-carpeta-contenedora)
 3. [Paso 3: Crear la Máquina Virtual Linux en Azure Portal](#paso-3-crear-la-máquina-virtual-linux-en-azure-portal)
 4. [Paso 4: Conectarte por SSH a la Máquina Virtual](#paso-4-conectarte-por-ssh-a-la-máquina-virtual)
-5. [Paso 5: Instalar Docker y Docker Compose en 1 Solo Comando](#paso-5-instalar-docker-y-docker-compose-en-1-solo-comando)
+5. [Paso 5: Instalar Docker y Docker Compose con Sudo](#paso-5-instalar-docker-y-docker-compose-con-sudo)
 6. [Paso 6: Clonar el Proyecto y Levantar Todo el Stack en Producción](#paso-6-clonar-el-proyecto-y-levantar-todo-el-stack-en-producción)
 7. [Paso 7: Verificar el Sistema en tu Navegador](#paso-7-verificar-el-sistema-en-tu-navegador)
 
@@ -67,7 +67,7 @@ En este servidor se ejecutará Docker Compose con los 3 contenedores: **PostgreS
      - *(Alternativa mínima económica: Standard_B1ms con 1 vCPU y 2 GiB RAM)*.
    - **Tipo de autenticación:** 
      - Selecciona **Contraseña** (Password) para máxima facilidad:
-       - **Nombre de usuario:** `ubuntu`
+       - **Nombre de usuario:** `ubuntu` (o el usuario que definas en Azure).
        - **Contraseña:** Crea una contraseña segura (ej. `Skylearn2026!UbuntuPass`) y anótala.
    - **Reglas de puertos de entrada:**
      - En *Puertos de entrada públicos*, marca **Permitir los puertos seleccionados**.
@@ -90,33 +90,30 @@ En este servidor se ejecutará Docker Compose con los 3 contenedores: **PostgreS
 Abre tu terminal habitual en Windows (PowerShell, CMD o Windows Terminal):
 
 ```powershell
-# Reemplaza ubuntu con tu usuario y la IP con la IP pública de tu VM
+# Reemplaza con tu usuario y la IP pública de tu VM
 ssh ubuntu@20.120.45.67
 ```
 
 - Escribe `yes` cuando te pregunte si confías en la huella digital del host (*fingerprint*).
-- Ingresa la contraseña que definiste en el Paso 3.
-- ¡Listo! Verás el prompt de bienvenida verde de Ubuntu: `ubuntu@vm-skylearn-prod:~$`.
+- Ingresa tu contraseña.
+- ¡Listo! Verás el prompt de bienvenida de Ubuntu: `ubuntu@vm-skylearn-prod:~$` (o `azureuser@...`).
 
 ---
 
-## Paso 5: Instalar Docker y Docker Compose en 1 Solo Comando
+## Paso 5: Instalar Docker y Docker Compose con Sudo
 
-Dentro de la consola de la máquina virtual, ejecuta el instalador oficial desatendido de Docker:
+Dentro de la consola de la máquina virtual, ejecuta la instalación directa de Ubuntu con privilegios de administrador (`sudo`):
 
 ```bash
-# 1. Descargar e instalar Docker automáticamente
-curl -fsSL https://get.docker.com | sudo sh
+# 1. Reparar cualquier proceso previo si se interrumpió
+sudo dpkg --configure -a
 
-# 2. Permitir que tu usuario ejecute comandos Docker sin sudo
-sudo usermod -aG docker $USER
+# 2. Actualizar repositorios e instalar Docker y Docker Compose directamente
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
 
-# 3. Aplicar los permisos al usuario actual
-newgrp docker
-
-# 4. Verificar que Docker y Docker Compose están instalados
-docker --version
-docker compose version
+# 3. Comprobar que ya están disponibles con sudo
+sudo docker --version
+sudo docker compose version
 ```
 
 ---
@@ -137,8 +134,8 @@ cp .env.prod.example .env
 nano .env
 # (Usa CTRL + O para guardar y CTRL + X para salir)
 
-# 4. LEVANTAR TODO EL STACK CON UN SOLO COMANDO:
-docker compose -f docker-compose.prod.yml up --build -d
+# 4. LEVANTAR TODO EL STACK CON UN SOLO COMANDO (CON SUDO):
+sudo docker compose -f docker-compose.prod.yml up --build -d
 ```
 
 ### 🧠 ¿Qué hace este comando automáticamente en segundo plano?
@@ -177,4 +174,3 @@ Para conectarla con este servidor de producción:
 2. Actualiza la URL base con la IP pública de tu servidor de Azure:  
    `export const API_BASE_URL = 'http://TU_IP_PUBLICA/api/v1';`
 3. ¡Listo! La app móvil consumirá directamente la API pública servida por Nginx en el puerto 80 sin requerir ningún contenedor adicional en el servidor.
-

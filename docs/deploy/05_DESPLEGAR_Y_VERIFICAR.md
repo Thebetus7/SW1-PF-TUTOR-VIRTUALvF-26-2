@@ -25,15 +25,15 @@ nano .env
 
 ## 2. Levantar el Stack Completo
 
-Ejecuta el comando único de orquestación de Docker Compose:
+Ejecuta el comando único de orquestación de sudo docker compose:
 
 ```bash
-docker compose -f docker-compose.prod.yml up --build -d
+sudo docker compose -f docker-compose.prod.yml up --build -d
 ```
 
 ### Verificación inmediata del estado de los contenedores:
 ```bash
-docker compose -f docker-compose.prod.yml ps
+sudo docker compose -f docker-compose.prod.yml ps
 ```
 
 Deberías ver los 3 servicios en estado **Up**:
@@ -51,7 +51,7 @@ skylearn-frontend-prod   skylearn-frontend-prod "/docker-entrypoint.…"   front
 Para comprobar que PostgreSQL aceptó conexiones, Prisma aplicó el esquema y se sembraron los datos de prueba:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs -f backend
+sudo docker compose -f docker-compose.prod.yml logs -f backend
 ```
 
 En la salida verás:
@@ -104,4 +104,5 @@ Para conectarla con este servidor de Azure:
    - **Correo:** `teacher@test.com`
    - **Contraseña:** `Password123!`
 5. Podrás ver los 3 KPIs del dashboard docente y el estado del semáforo de alumnos consumiendo datos reales de producción.
+
 
