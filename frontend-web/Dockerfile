@@ -4,6 +4,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+ARG VITE_TUTOR_VRM_MALE_URL
+ARG VITE_TUTOR_VRM_FEMALE_URL
+ENV VITE_TUTOR_VRM_MALE_URL=$VITE_TUTOR_VRM_MALE_URL
+ENV VITE_TUTOR_VRM_FEMALE_URL=$VITE_TUTOR_VRM_FEMALE_URL
 RUN npm run build
 
 # Stage 2: Servidor Nginx ultra-ligero para producción

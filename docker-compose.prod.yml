@@ -27,9 +27,13 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-demo_key}
       GEMINI_DEFAULT_MODEL: ${GEMINI_DEFAULT_MODEL:-gemini-2.5-flash}
+      GEMINI_LIVE_MODEL: ${GEMINI_LIVE_MODEL:-}
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-mock}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-mock}
       RUN_SEED: ${RUN_SEED:-true}
+      SEED_TEACHER_EMAIL: ${SEED_TEACHER_EMAIL:-teacher@test.com}
     networks:
       - skylearn-network
 
@@ -37,6 +41,9 @@ services:
     build:
       context: ./frontend-web
       dockerfile: Dockerfile
+      args:
+        VITE_TUTOR_VRM_MALE_URL: ${VITE_TUTOR_VRM_MALE_URL:-}
+        VITE_TUTOR_VRM_FEMALE_URL: ${VITE_TUTOR_VRM_FEMALE_URL:-}
     container_name: skylearn-frontend-prod
     restart: unless-stopped
     depends_on:

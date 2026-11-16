@@ -11,9 +11,14 @@
 //   isListening -> inclinación de escucha atenta
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import type { AvatarGesture, GestureSelection } from './avatarGestures';
 import type { AvatarPoseType, VisemeShape } from '../types/tutor.types';
 
 export interface TutorAvatar3DProps {
+  speechText?: string;
+  spokenEnd?: number;
+  gestureSelection?: GestureSelection;
+  onGestureChange?: (gesture: AvatarGesture) => void;
   pose?: AvatarPoseType;
   viseme?: VisemeShape;
   isSpeaking?: boolean;

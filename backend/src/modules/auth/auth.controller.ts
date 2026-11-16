@@ -1,5 +1,5 @@
 // backend/src/modules/auth/auth.controller.ts
-import { Controller, Post, Get, Patch, Body, Param, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -31,6 +31,15 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Get('auth/me')
+  @UseGuards(JwtAuthGuard)
+  async me(@Request() req: any) {
+    const user = req.user;
+    return { id: user.id, name: user.name, email: user.email, role: user.role,
+      credits: user.creditAccount?.balance ?? 0,
+      subscriptionStatus: user.subscription?.status ?? 'INACTIVE' };
   }
 
   @Post('admin/reset-demo-data')

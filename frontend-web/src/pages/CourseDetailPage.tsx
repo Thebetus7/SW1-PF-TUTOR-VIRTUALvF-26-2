@@ -247,10 +247,10 @@ export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: Cou
           <div style={styles.teacherBannerBox}>
             <div style={styles.teacherBannerContent}>
               <div style={styles.teacherBadge}>
-                <Sparkles size={16} color="#0A58CA" />
+                <Sparkles size={16} color="var(--course-accent)" />
                 <span>{isAuthor ? 'Modo Docente Creador • Autor del Curso' : 'Modo Docente • Vista de Supervisión'}</span>
               </div>
-              <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#4B5563' }}>
+              <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: 'var(--color-ink-muted)' }}>
                 {isAuthor
                   ? 'Tienes acceso irrestricto a todas las lecciones sin candados ni necesidad de inscripción.'
                   : 'Como docente puedes previsualizar los contenidos y simular las interacciones del Tutor Virtual.'}
@@ -387,8 +387,8 @@ export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: Cou
                             gap: '8px',
                             padding: '8px 16px',
                             fontSize: '14px',
-                            borderColor: '#2563EB',
-                            color: '#2563EB',
+                            borderColor: 'var(--course-accent)',
+                            color: 'var(--course-accent)',
                           }}
                           title="Previsualizar esta clase como docente"
                         >
@@ -455,8 +455,8 @@ export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: Cou
                         <span
                           style={{
                             ...styles.demoBadge,
-                            backgroundColor: isTeacher ? '#F3E8FF' : '#E0E7FF',
-                            color: isTeacher ? '#7E22CE' : '#3730A3',
+                            backgroundColor: 'var(--color-surface-elevated)',
+                            color: 'var(--color-ink)',
                           }}
                         >
                           {isTeacher ? 'Playground Docente • Sin Calificación' : 'Demo • 0 Créditos'}
@@ -489,9 +489,9 @@ export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: Cou
                         className={isTeacher ? 'btn-secondary' : 'btn-primary'}
                         style={{
                           ...styles.startEvalBtn,
-                          backgroundColor: isTeacher ? '#FAF5FF' : undefined,
-                          borderColor: isTeacher ? '#7E22CE' : undefined,
-                          color: isTeacher ? '#7E22CE' : undefined,
+                          background: isTeacher ? 'var(--color-surface-elevated)' : undefined,
+                          borderColor: isTeacher ? 'var(--color-outline-strong)' : undefined,
+                          color: isTeacher ? 'var(--color-ink)' : undefined,
                         }}
                         title={
                           isTeacher
@@ -499,7 +499,7 @@ export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: Cou
                             : 'Comenzar la evaluación interactiva con el Docente Virtual'
                         }
                       >
-                        <Sparkles size={16} color={isTeacher ? '#7E22CE' : '#FFFFFF'} />
+                        <Sparkles size={16} color={isTeacher ? 'var(--course-accent)' : '#FFFFFF'} />
                         <span>{isTeacher ? 'Probar Interacción del Tutor' : 'Comenzar Evaluación (Demo)'}</span>
                       </button>
                     ) : (
@@ -579,9 +579,9 @@ const styles: Record<string, React.CSSProperties> = {
   headerCard: {
     padding: '32px',
     marginBottom: '36px',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'var(--color-surface-elevated)',
     borderRadius: '16px',
-    border: '1px solid #E5E7EB',
+    border: '1px solid var(--color-outline)',
   },
   headerMeta: {
     display: 'flex',
@@ -601,7 +601,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: 'var(--color-surface)',
     padding: '4px 10px',
     borderRadius: '999px',
     border: '1px solid #FDE68A',
@@ -626,7 +626,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '12px',
     marginBottom: '24px',
     paddingTop: '16px',
-    borderTop: '1px solid #F3F4F6',
+    borderTop: '1px solid var(--color-outline)',
   },
   teacherAvatar: {
     width: '36px',
@@ -674,9 +674,9 @@ const styles: Record<string, React.CSSProperties> = {
   moduleCard: {
     padding: '24px',
     marginBottom: '24px',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'var(--color-surface-elevated)',
     borderRadius: '16px',
-    border: '1px solid #E5E7EB',
+    border: '1px solid var(--color-outline)',
   },
   moduleHeader: {
     display: 'flex',
@@ -684,13 +684,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '12px',
     marginBottom: '16px',
     paddingBottom: '12px',
-    borderBottom: '1px solid #F3F4F6',
+    borderBottom: '1px solid var(--color-outline)',
   },
   moduleNumber: {
     fontSize: '12px',
     fontWeight: 700,
-    backgroundColor: '#F3F4F6',
-    color: '#4B5563',
+    backgroundColor: 'var(--color-surface-sunken)',
+    color: 'var(--color-ink-muted)',
     padding: '4px 8px',
     borderRadius: '8px',
   },
@@ -711,8 +711,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     padding: '14px 18px',
     borderRadius: '12px',
-    backgroundColor: '#FAFAFA',
-    border: '1px solid #E5E7EB',
+    backgroundColor: 'var(--color-surface-sunken)',
+    border: '1px solid var(--color-outline)',
     gap: '16px',
     flexWrap: 'wrap',
   },
@@ -725,8 +725,8 @@ const styles: Record<string, React.CSSProperties> = {
     width: '28px',
     height: '28px',
     borderRadius: '50%',
-    backgroundColor: '#EFF6FF',
-    color: '#2563EB',
+    backgroundColor: 'var(--color-sky-soft)',
+    color: 'var(--course-accent)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -738,11 +738,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '15px',
     fontWeight: 700,
     margin: '0 0 2px 0',
-    color: '#1F2937',
+    color: 'var(--color-ink)',
   },
   lessonSubText: {
     fontSize: '12px',
-    color: '#6B7280',
+    color: 'var(--color-ink-muted)',
   },
 
   // Estilos de la Fila del Docente Virtual
@@ -752,8 +752,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     padding: '16px 20px',
     borderRadius: '14px',
-    backgroundColor: '#F0F9FF',
-    border: '1.5px solid #BAE6FD',
+    backgroundColor: 'var(--color-sky-soft)',
+    border: '1.5px solid var(--color-outline)',
     marginTop: '6px',
     gap: '16px',
     flexWrap: 'wrap',
@@ -779,7 +779,7 @@ const styles: Record<string, React.CSSProperties> = {
   tutorEvalTitle: {
     fontSize: '15px',
     fontWeight: 800,
-    color: '#0369A1',
+    color: 'var(--course-accent)',
     margin: 0,
   },
   demoBadge: {
@@ -793,7 +793,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tutorEvalSubText: {
     fontSize: '12px',
-    color: '#0284C7',
+    color: 'var(--color-ink-muted)',
     display: 'block',
     marginTop: '2px',
   },
@@ -809,9 +809,9 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '6px',
     padding: '8px 14px',
     fontSize: '13px',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#BAE6FD',
-    color: '#0369A1',
+    backgroundColor: 'var(--color-surface-elevated)',
+    borderColor: 'var(--color-outline)',
+    color: 'var(--color-ink)',
   },
   startEvalBtn: {
     display: 'flex',
@@ -847,9 +847,9 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '18px 22px',
-    backgroundColor: '#F0F9FF',
+    backgroundColor: 'var(--color-sky-soft)',
     borderRadius: '14px',
-    border: '1px solid #BAE6FD',
+    border: '1px solid var(--color-outline)',
     marginTop: '20px',
     gap: '16px',
     flexWrap: 'wrap',
@@ -864,7 +864,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '6px',
     fontSize: '13px',
     fontWeight: 700,
-    color: '#0A58CA',
+    color: 'var(--course-accent)',
   },
   emptyStateCard: {
     padding: '48px 24px',

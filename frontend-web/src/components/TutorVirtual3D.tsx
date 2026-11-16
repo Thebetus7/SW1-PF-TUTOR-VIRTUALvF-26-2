@@ -4,10 +4,13 @@
 // la postura y los visemas provienen de la pista que genera el backend con IA.
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Bot, Send, Volume2, VolumeX, Sparkles, ArrowRight, MessageSquare } from 'lucide-react';
+import { useLiveTutor } from '../hooks/useLiveTutor';
+import { useTutorSpeech } from '../hooks/useTutorSpeech';
+import { TutorSpeechControls } from './TutorSpeechControls';
 import { api } from '../services/api';
 import type { AvatarPoseType, VisemeFrame, VisemeShape } from '../types/tutor.types';
 
-const TutorAvatar3D = lazy(() => import('./TutorAvatar3D'));
+const TutorAvatar3D = lazy(() => import('./TutorAvatar'));
 
 interface TutorVirtual3DProps {
   lessonId: string;
@@ -61,47 +64,13 @@ export const TutorVirtual3D: React.FC<TutorVirtual3DProps> = ({
     };
   }, [clearTimers]);
 
-  const speak = useCallback(
-    (text: string, visemes: VisemeFrame[]) => {
-      clearTimers();
-      setIsSpeaking(true);
-      setPose('explaining');
-
-      if (soundEnabled && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'es-ES';
-        utterance.rate = 1.02;
-        utterance.pitch = 1.05;
-        utterance.onend = () => {
-          setIsSpeaking(false);
-          setPose('idle');
-          setCurrentViseme('sil');
-        };
-        window.speechSynthesis.speak(utterance);
-      }
-
-      visemes.forEach((frame) => {
-        const timer = window.setTimeout(() => setCurrentViseme(frame.shape), frame.timeMs);
-        timersRef.current.push(timer);
-      });
-
-      const lastTime = visemes[visemes.length - 1]?.timeMs ?? 2200;
-      const idleTimer = window.setTimeout(() => {
-        setCurrentViseme('sil');
-        if (!('speechSynthesis' in window) || !soundEnabled) {
-          setIsSpeaking(false);
-          setPose('idle');
-        }
-      }, lastTime + 320);
-      timersRef.current.push(idleTimer);
-    },
-    [clearTimers, soundEnabled],
-  );
-
+  const speech = useTutorSpeech();
+  const live = useLiveTutor(lessonId, speech.gender);
+  useEffect(() => { setIsSpeaking(speech.speaking); setCurrentViseme(speech.viseme); setPose(speech.speaking ? 'explaining' : 'idle'); }, [speech.speaking, speech.viseme]);
+  const speak = (text: string, _visemes: VisemeFrame[]) => { if (soundEnabled) void speech.speak(text); };
   const handleSendMessage = async (customText?: string) => {
     const textToSend = customText ?? inputText;
-    if (!textToSend.trim() || loading) return;
+    if (!textToSend.trim() || loading || live.active) return;
 
     const userMsg = textToSend.trim();
     setMessages((prev) => [...prev, { sender: 'user', text: userMsg }]);
@@ -130,6 +99,23 @@ export const TutorVirtual3D: React.FC<TutorVirtual3DProps> = ({
     }
   };
 
+  const handleToggleSound = () => {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      if (!next) {
+        speech.stop();
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+        clearTimers();
+        setIsSpeaking(false);
+        setCurrentViseme('sil');
+        setPose('idle');
+      }
+      return next;
+    });
+  };
+
   const statusLabel = isSpeaking
     ? 'Sky está explicando'
     : loading
@@ -153,7 +139,7 @@ export const TutorVirtual3D: React.FC<TutorVirtual3DProps> = ({
           <button
             type="button"
             style={styles.iconButton}
-            onClick={() => setSoundEnabled((prev) => !prev)}
+            onClick={handleToggleSound}
             aria-label={soundEnabled ? 'Silenciar la voz del docente' : 'Activar la voz del docente'}
           >
             {soundEnabled ? (
@@ -168,15 +154,28 @@ export const TutorVirtual3D: React.FC<TutorVirtual3DProps> = ({
       <div style={styles.avatarStage}>
         <Suspense fallback={<AvatarPlaceholder />}>
           <TutorAvatar3D
-            pose={pose}
-            viseme={currentViseme}
-            isSpeaking={isSpeaking}
+                  speechText={speech.text}
+                  spokenEnd={speech.range.start + speech.range.length}
+            gender={speech.gender}
+            pose={live.active ? (live.state === 'speaking' ? 'explaining' : 'listening') : pose}
+            viseme={live.active ? (live.state === 'speaking' ? 'aa' : 'sil') : currentViseme}
+            isSpeaking={live.active ? live.state === 'speaking' : isSpeaking}
+            isListening={live.active && live.state === 'listening'}
             width={320}
             height={300}
           />
         </Suspense>
       </div>
 
+      {!live.active && <TutorSpeechControls speech={speech} />}
+      <div className="tutor-speech-controls">
+        <button type="button" className="btn-primary" onClick={() => { if (live.active) live.disconnect(); else { speech.stop(); void live.connect(); } }}>
+          {live.active ? 'Terminar conversación en directo' : 'Conversar por voz en directo'}
+        </button>
+        <span role="status">{live.state === 'connecting' ? 'Conectando…' : live.state === 'speaking' ? 'Sky está hablando · puedes interrumpir' : live.state === 'listening' ? 'Te escucho' : 'Micrófono apagado'}</span>
+        {live.error && <p role="alert">{live.error}</p>}
+        {live.transcript.map((turn, index) => <p className="tutor-live-caption" key={index}><span>{turn.sender === 'user' ? 'Tú: ' : 'Sky: '}</span>{index === live.transcript.length - 1 && turn.sender === 'tutor' && live.state === 'speaking' ? <strong>{turn.text}</strong> : turn.text}</p>)}
+      </div>
       <div style={styles.messagesBox} aria-live="polite">
         {messages.map((message, index) => (
           <div
@@ -225,7 +224,7 @@ export const TutorVirtual3D: React.FC<TutorVirtual3DProps> = ({
           type="button"
           style={styles.chipBtn}
           onClick={() => handleSendMessage('¿Me puedes explicar esto de forma sencilla?')}
-          disabled={loading}
+          disabled={loading || live.active}
         >
           <MessageSquare size={16} aria-hidden="true" />
           <span>Explicación sencilla</span>
@@ -234,14 +233,14 @@ export const TutorVirtual3D: React.FC<TutorVirtual3DProps> = ({
           type="button"
           style={styles.chipBtn}
           onClick={() => handleSendMessage('Dame un ejemplo cotidiano')}
-          disabled={loading}
+          disabled={loading || live.active}
         >
           <MessageSquare size={16} aria-hidden="true" />
           <span>Ejemplo cotidiano</span>
         </button>
       </div>
 
-      <div style={styles.inputRow}>
+      <div style={styles.inputRow} aria-disabled={live.active}>
         <input
           type="text"
           className="skylearn-input"
@@ -251,7 +250,7 @@ export const TutorVirtual3D: React.FC<TutorVirtual3DProps> = ({
           onKeyDown={(event) => {
             if (event.key === 'Enter') void handleSendMessage();
           }}
-          disabled={loading}
+          disabled={loading || live.active}
           aria-label="Escribe tu pregunta al docente virtual"
           style={{ flex: 1 }}
         />
@@ -259,7 +258,7 @@ export const TutorVirtual3D: React.FC<TutorVirtual3DProps> = ({
           type="button"
           className="btn-big-friendly"
           onClick={() => void handleSendMessage()}
-          disabled={loading || !inputText.trim()}
+          disabled={loading || live.active || !inputText.trim()}
           style={styles.sendButton}
           aria-label="Enviar pregunta"
         >

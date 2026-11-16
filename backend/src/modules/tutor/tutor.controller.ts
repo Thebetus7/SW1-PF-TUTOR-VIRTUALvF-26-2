@@ -12,6 +12,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { TutorService } from './tutor.service';
+import { SpeechService } from './speech.service';
+import { SpeechDto, LiveTutorDto } from './dto/speech.dto';
+import { LiveTutorService } from './live.service';
 import { ChatTutorDto } from './dto/chat-tutor.dto';
 import { TestConnectionDto } from './dto/test-connection.dto';
 import {
@@ -23,7 +26,19 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 @ApiTags('Docente Virtual Multimodal')
 @Controller('tutor')
 export class TutorController {
-  constructor(private readonly tutorService: TutorService) {}
+  constructor(private readonly tutorService: TutorService, private readonly speechService: SpeechService, private readonly liveService: LiveTutorService) {}
+
+  @Post('live-token')
+  @UseGuards(JwtAuthGuard)
+  async liveToken(@Request() req: { user: { id: string; role: string } }, @Body() dto: LiveTutorDto) {
+    return this.liveService.token(req.user.id, req.user.role, dto.lessonId, dto.gender);
+  }
+
+  @Post('speech')
+  @UseGuards(JwtAuthGuard)
+  async speech(@Body() dto: SpeechDto) {
+    return this.speechService.synthesize(dto.text, dto.gender);
+  }
 
   @Post('test-connection')
   @HttpCode(HttpStatus.OK)

@@ -8,8 +8,9 @@ import { PaywallModal } from './components/PaywallModal';
 import { CourseDetailPage } from './pages/CourseDetailPage';
 import { TeacherCourseManager } from './pages/TeacherCourseManager';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { VirtualTutorSectionPage } from './pages/VirtualTutorSectionPage';
 import { api } from './services/api';
-import { Compass, BookOpen, ArrowRight, FolderPlus, CheckCircle2 } from 'lucide-react';
+import { Compass, BookOpen, ArrowRight, FolderPlus, CheckCircle2, Bot } from 'lucide-react';
 
 interface UserData {
   id: string;
@@ -27,7 +28,7 @@ export function App() {
   const [activeLesson, setActiveLesson] = useState<any | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [unlockedLessons, setUnlockedLessons] = useState<string[]>([]);
+  const [accessError, setAccessError] = useState('');
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
   // Sincronización con el historial del navegador (Hash Routing)
@@ -49,6 +50,20 @@ export function App() {
       window.removeEventListener('popstate', handleHashChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!user || user.role !== 'STUDENT') return;
+    const refresh = () => {
+      api.get<UserData>('/auth/me').then(({ data }) => {
+        setUser(data);
+        localStorage.setItem('user_data', JSON.stringify(data));
+      }).catch(() => {});
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 15000);
+    window.addEventListener('focus', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user_data');
@@ -87,7 +102,7 @@ export function App() {
     if (userData.role === 'ADMIN') {
       window.location.hash = '#/admin';
     } else if (userData.role === 'TEACHER') {
-      window.location.hash = '#/teacher/courses';
+      window.location.hash = '#/courses';
     } else {
       window.location.hash = '#/courses';
     }
@@ -106,30 +121,16 @@ export function App() {
     const lessonId = lesson.id;
 
     if (user && user.role === 'STUDENT') {
-      const isAlreadyUnlocked = unlockedLessons.includes(lessonId);
-      const isSubscribed = user.subscriptionStatus === 'ACTIVE';
-
-      if (!isAlreadyUnlocked && !isSubscribed) {
-        if (user.credits <= 0) {
-          setShowPaywall(true);
-          return;
-        }
-
-        // Intento de acceso en el backend
-        try {
-          await api.post(`/lessons/${lessonId}/access`);
-        } catch (err: any) {
-          if (err.response?.status === 402) {
-            setShowPaywall(true);
-            return;
-          }
-        }
-
-        const newCredits = Math.max(0, user.credits - 1);
-        const updatedUser = { ...user, credits: newCredits };
+      setAccessError('');
+      try {
+        const { data } = await api.post<{ remainingCredits: number }>(`/lessons/${lessonId}/access`);
+        const updatedUser = { ...user, credits: data.remainingCredits };
         setUser(updatedUser);
         localStorage.setItem('user_data', JSON.stringify(updatedUser));
-        setUnlockedLessons([...unlockedLessons, lessonId]);
+      } catch (err: any) {
+        if (err.response?.status === 402) setShowPaywall(true);
+        else setAccessError('No se pudo abrir la lección. Revisa la conexión e inténtalo nuevamente.');
+        return;
       }
     }
 
@@ -184,10 +185,11 @@ export function App() {
         }}
         currentPath={currentHash}
       />
+      {accessError && <div role="alert" style={{ padding: 12, color: '#991b1b' }}>{accessError}</div>}
 
       {!user ? (
         <AuthPage onAuthSuccess={handleAuthSuccess} />
-      ) : (mainSegment === 'admin' || (user.role === 'ADMIN' && mainSegment !== 'courses' && mainSegment !== 'lessons')) ? (
+      ) : (mainSegment === 'admin' || (user.role === 'ADMIN' && mainSegment !== 'courses' && mainSegment !== 'lessons' && mainSegment !== 'tutor')) ? (
         /* VISTA: PANEL DE ADMINISTRACIÓN Y CONTROL DE CRÉDITOS */
         <AdminDashboardPage
           onCreditsModified={() => {
@@ -205,6 +207,14 @@ export function App() {
                 }).catch(() => {});
               } catch {}
             }
+          }}
+        />
+      ) : mainSegment === 'tutor' ? (
+        /* VISTA DEDICADA: DOCENTE VIRTUAL INTERACTIVO 3D */
+        <VirtualTutorSectionPage
+          user={user}
+          onNavigateToCourse={(courseId) => {
+            window.location.hash = `#/courses/${courseId}`;
           }}
         />
       ) : mainSegment === 'lessons' && activeLesson ? (
@@ -247,7 +257,7 @@ export function App() {
             <div style={styles.bannerContent}>
               <div style={styles.badgeRow}>
                 {user.role === 'STUDENT' ? (
-                  <span className="star-badge">⭐ {user.credits} Créditos Disponibles</span>
+                  <span className="star-badge">⭐ {user.credits} Créditos</span>
                 ) : (
                   <span className="star-badge" style={{ backgroundColor: 'var(--color-sky-soft)', color: 'var(--color-sky-deep)' }}>
                     Perfil Docente
@@ -258,28 +268,25 @@ export function App() {
               <h2 style={styles.welcomeTitle}>¡Hola, {user.name}!</h2>
               <p style={styles.welcomeDesc}>
                 {user.role === 'STUDENT'
-                  ? 'Explora el catálogo de cursos, inscríbete gratis para ver el temario y utiliza tus créditos para desbloquear lecciones con tutoría 3D y evaluaciones.'
-                  : 'Administra tus cursos curriculares, estructura los módulos con videos de YouTube y construye formularios evaluativos interactivos.'}
+                  ? 'Explora el catálogo de cursos, inscríbete para ver el temario completo o consulta a nuestro Docente Virtual 3D.'
+                  : 'Consulta el catálogo general o ve al panel docente para gestionar cursos y lecciones.'}
               </p>
 
               <div style={styles.bannerActions}>
                 {user.role === 'STUDENT' ? (
                   <>
                     <button className="btn-big-friendly" onClick={() => setShowQuiz(true)}>
-                      <Compass size={20} />
-                      <span>Descubrir qué Aprender (Test Gratuito)</span>
+                      <Compass size={17} />
+                      <span>Test de Recomendación</span>
                     </button>
-                    {courses.length > 0 && (
-                      <button
-                        className="btn-secondary"
-                        onClick={() => {
-                          window.location.hash = `#/courses/${courses[0].id}`;
-                        }}
-                      >
-                        <BookOpen size={18} />
-                        <span>Explorar Primer Curso</span>
-                      </button>
-                    )}
+                    <a
+                      href="#/tutor"
+                      className="btn-secondary"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <Bot size={16} color="var(--color-sky)" />
+                      <span>Ir al Docente Virtual</span>
+                    </a>
                   </>
                 ) : (
                   <button
@@ -288,8 +295,8 @@ export function App() {
                       window.location.hash = '#/teacher/courses';
                     }}
                   >
-                    <FolderPlus size={20} />
-                    <span>Gestionar Cursos</span>
+                    <FolderPlus size={17} />
+                    <span>Ir a gestión docente</span>
                   </button>
                 )}
               </div>
@@ -301,10 +308,12 @@ export function App() {
             <div style={styles.sectionHeader}>
               <div>
                 <h3 style={styles.sectionTitle}>
-                  {user.role === 'STUDENT' ? 'Catálogo de Cursos Didácticos' : 'Cursos Publicados en la Plataforma'}
+                  {user.role === 'STUDENT' ? 'Cursos disponibles' : 'Catálogo general de cursos'}
                 </h3>
                 <span style={styles.sectionSubtitle}>
-                  Selecciona un curso para explorar su temario completo y comenzar tus lecciones
+                  {user.role === 'STUDENT'
+                    ? 'Explora los cursos del sistema y selecciona uno para consultar su temario.'
+                    : 'Consulta los cursos del sistema. Para crear o editar contenido, entra en Gestión docente.'}
                 </span>
               </div>
             </div>
@@ -316,17 +325,18 @@ export function App() {
                     <div style={styles.courseTag}>{course.category || 'General'}</div>
                     {course.isEnrolled && (
                       <span style={styles.enrolledTag}>
-                        <CheckCircle2 size={13} /> Inscrito
+                        <CheckCircle2 size={12} /> Inscrito
                       </span>
                     )}
                   </div>
 
                   <h4 style={styles.courseTitle}>{course.title}</h4>
                   <p style={styles.courseDesc}>{course.description}</p>
+                  {course.teacherName && <p style={styles.sectionSubtitle}>Docente: {course.teacherName}</p>}
 
                   <div style={styles.courseFooter}>
                     <div style={styles.lessonCount}>
-                      <BookOpen size={16} color="var(--color-ink-muted)" />
+                      <BookOpen size={14} color="var(--color-ink-muted)" />
                       <span>{course.modulesCount || 1} Módulo(s)</span>
                     </div>
 
@@ -335,10 +345,10 @@ export function App() {
                       onClick={() => {
                         window.location.hash = `#/courses/${course.id}`;
                       }}
-                      style={{ padding: '8px 16px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      style={{ padding: '6px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
                       <span>Ver Temario</span>
-                      <ArrowRight size={16} />
+                      <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>
@@ -381,142 +391,140 @@ const styles: Record<string, React.CSSProperties> = {
   mainContainer: {
     maxWidth: '1200px',
     margin: '0 auto',
-    padding: '36px 24px',
+    padding: '24px 16px',
     width: '100%',
     flex: 1,
   },
   welcomeBanner: {
-    padding: '36px',
-    marginBottom: '40px',
-    backgroundColor: '#FFFFFF',
-    border: '2px solid var(--color-sky-light, #E2F0FE)',
+    padding: '24px',
+    marginBottom: '28px',
+    backgroundColor: 'var(--color-surface-elevated)',
   },
   bannerContent: {
-    maxWidth: '800px',
+    maxWidth: '780px',
   },
   badgeRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    marginBottom: '16px',
+    gap: '10px',
+    marginBottom: '12px',
   },
   planBadge: {
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: 700,
     textTransform: 'uppercase',
-    letterSpacing: '0.05em',
+    letterSpacing: '0.04em',
     color: 'var(--color-ink-muted)',
-    backgroundColor: '#F3F4F6',
-    padding: '4px 10px',
-    borderRadius: '12px',
+    backgroundColor: 'var(--color-surface)',
+    padding: '3px 8px',
+    borderRadius: '8px',
+    border: '1px solid var(--color-outline)',
   },
   welcomeTitle: {
-    fontSize: '32px',
+    fontSize: '24px',
     fontWeight: 800,
     color: 'var(--color-ink)',
-    margin: '0 0 12px 0',
+    margin: '0 0 8px 0',
   },
   welcomeDesc: {
-    fontSize: '16px',
+    fontSize: '14px',
     color: 'var(--color-ink-muted)',
-    lineHeight: 1.6,
-    margin: '0 0 24px 0',
+    lineHeight: 1.5,
+    margin: '0 0 18px 0',
   },
   bannerActions: {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: '14px',
+    gap: '10px',
   },
   coursesSection: {
-    marginTop: '16px',
+    marginTop: '12px',
   },
   sectionHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: '24px',
+    marginBottom: '18px',
   },
   sectionTitle: {
-    fontSize: '24px',
+    fontSize: '20px',
     fontWeight: 800,
     color: 'var(--color-ink)',
-    margin: '0 0 4px 0',
+    margin: '0 0 2px 0',
   },
   sectionSubtitle: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--color-ink-muted)',
   },
   courseGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-    gap: '24px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '18px',
   },
   courseCard: {
-    padding: '24px',
+    padding: '20px',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: '16px',
-    transition: 'transform 0.2s, box-shadow 0.2s',
+    backgroundColor: 'var(--color-surface-elevated)',
+    borderRadius: 'var(--radius-md)',
   },
   cardTopRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: '14px',
+    marginBottom: '10px',
   },
   courseTag: {
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: 700,
     textTransform: 'uppercase',
-    color: 'var(--color-sky-deep, #0A58CA)',
-    backgroundColor: 'var(--color-sky-soft, #D0E4FE)',
-    padding: '4px 10px',
-    borderRadius: '12px',
+    color: 'var(--color-sky-deep)',
+    backgroundColor: 'var(--color-sky-soft)',
+    padding: '3px 8px',
+    borderRadius: '6px',
   },
   enrolledTag: {
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
-    fontSize: '12px',
+    gap: '3px',
+    fontSize: '11px',
     fontWeight: 700,
     color: '#03543F',
     backgroundColor: '#DEF7EC',
-    padding: '3px 8px',
-    borderRadius: '8px',
+    padding: '2px 6px',
+    borderRadius: '6px',
   },
   courseTitle: {
-    fontSize: '18px',
+    fontSize: '16px',
     fontWeight: 700,
     color: 'var(--color-ink)',
-    margin: '0 0 10px 0',
+    margin: '0 0 8px 0',
     lineHeight: 1.3,
   },
   courseDesc: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--color-ink-muted)',
-    lineHeight: 1.5,
-    margin: '0 0 20px 0',
+    lineHeight: 1.45,
+    margin: '0 0 16px 0',
     flex: 1,
   },
   courseFooter: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: '16px',
-    borderTop: '1px solid #F3F4F6',
+    paddingTop: '12px',
+    borderTop: '1px solid var(--color-outline)',
   },
   lessonCount: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    fontSize: '13px',
+    gap: '5px',
+    fontSize: '12px',
     color: 'var(--color-ink-muted)',
     fontWeight: 600,
   },
 };
 
 export default App;
-

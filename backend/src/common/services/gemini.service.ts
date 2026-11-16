@@ -10,13 +10,7 @@ export class GeminiService {
 
   // Cascada de modelos vigentes para Capa Gratuita (Free Tier)
   // Conforme a la regla universal: gemini-1.5-flash y gemini-2.0-flash están obsoletos/retirados
-  private readonly fallbackModels = [
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
-    'gemini-2.5-flash-lite',
-    'gemini-3.8-flash',
-    'gemini-flash-latest',
-  ];
+  private readonly fallbackModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -39,7 +33,10 @@ export class GeminiService {
       return fallbackGenerator();
     }
 
+    const deadline = Date.now() + 10000;
     for (const modelName of this.fallbackModels) {
+      const remaining = deadline - Date.now();
+      if (remaining < 500) break;
       try {
         this.logger.log(`Intentando inferencia Gemini con modelo: ${modelName}`);
         const model = this.genAI.getGenerativeModel({
@@ -50,13 +47,7 @@ export class GeminiService {
           },
         });
 
-        // Timeout preventivo estricto de 10 segundos
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Timeout de 10s excedido para ${modelName}`)), 10000),
-        );
-
-        const resultPromise = model.generateContent(prompt);
-        const response = await Promise.race([resultPromise, timeoutPromise]);
+        const response = await model.generateContent(prompt, { timeout: Math.min(remaining, 6000) });
         const text = response.response.text();
 
         const cleanJson = this.sanitizeJsonString(text);
@@ -82,7 +73,10 @@ export class GeminiService {
       return fallbackGenerator();
     }
 
+    const deadline = Date.now() + 10000;
     for (const modelName of this.fallbackModels) {
+      const remaining = deadline - Date.now();
+      if (remaining < 500) break;
       try {
         const model = this.genAI.getGenerativeModel({
           model: modelName,
@@ -91,12 +85,7 @@ export class GeminiService {
           },
         });
 
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Timeout de 10s excedido para ${modelName}`)), 10000),
-        );
-
-        const resultPromise = model.generateContent(prompt);
-        const response = await Promise.race([resultPromise, timeoutPromise]);
+        const response = await model.generateContent(prompt, { timeout: Math.min(remaining, 6000) });
         return response.response.text().trim();
       } catch (error: any) {
         this.logger.warn(`Fallo en modelo ${modelName} para generateText: ${error?.message || error}.`);

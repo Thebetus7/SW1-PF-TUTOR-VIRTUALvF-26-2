@@ -9,6 +9,8 @@ Aplicación d móvil orientada exclusivamente al **Docente / Creador de Contenid
 1. **Node.js**: v18.0.0 o superior (recomendado v20+).
 2. **Backend en ejecución**: El servidor NestJS debe estar corriendo en `http://localhost:3000` (accesible en la red local o mediante IP de tu máquina para pruebas físicas).
 
+En un teléfono físico, configura antes de iniciar Expo `EXPO_PUBLIC_API_URL` con la dirección accesible del backend, por ejemplo `http://192.168.1.10:3000/api/v1`; `localhost` en el teléfono no apunta a la computadora. En PowerShell: `$env:EXPO_PUBLIC_API_URL="http://192.168.1.10:3000/api/v1"`. Inicia sesión con una cuenta docente. Para push remoto se necesita un proyecto Expo/EAS configurado, credenciales de notificación de Android/iOS y una compilación compatible instalada en un dispositivo; el backend debe poder acceder a `https://exp.host`. La app informa si no consigue registrar el dispositivo.
+
 ---
 
 ## 🚀 Comandos para Levantar el Frontend Móvil

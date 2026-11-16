@@ -222,7 +222,7 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     width: '100%',
     maxWidth: '640px',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'var(--color-surface-elevated)',
     padding: '32px',
     borderRadius: 'var(--radius-xl)',
   },

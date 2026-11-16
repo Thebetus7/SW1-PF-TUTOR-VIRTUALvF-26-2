@@ -25,6 +25,7 @@ export interface SpeechSegmentDto {
 }
 
 export interface StartModuleEvaluationResponseDto {
+  sessionId: string;
   moduleId: string;
   moduleTitle: string;
   totalLessons: number;
@@ -39,6 +40,8 @@ export interface StartModuleEvaluationResponseDto {
 }
 
 export class AnswerModuleEvaluationDto {
+  @IsUUID()
+  sessionId: string;
   @ApiProperty({ description: 'ID del módulo en evaluación', example: 'uuid-modulo' })
   @IsNotEmpty()
   @IsString()

@@ -1,8 +1,7 @@
 // frontend-web/src/components/LessonViewer.tsx
 import React, { useState } from 'react';
-import { ArrowLeft, CheckCircle2, Download, HelpCircle, Award } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, HelpCircle, Award, Bot } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { TutorVirtual3D } from './TutorVirtual3D';
 
 interface LessonViewerProps {
   lesson: {
@@ -80,8 +79,8 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
 
     if (percentage >= 70) {
       confetti({
-        particleCount: 80,
-        spread: 70,
+        particleCount: 70,
+        spread: 60,
         origin: { y: 0.6 },
       });
       onCompleteLesson(lesson.id);
@@ -92,13 +91,21 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
 
   return (
     <div style={styles.container}>
-      <button onClick={onBack} style={styles.backBtn}>
-        <ArrowLeft size={18} />
-        <span>Volver a la Lista de Lecciones</span>
-      </button>
+      <div style={styles.headerBar}>
+        <button onClick={onBack} style={styles.backBtn}>
+          <ArrowLeft size={16} />
+          <span>Volver al Temario</span>
+        </button>
+
+        {/* Acceso directo opcional al Docente Virtual dedicado */}
+        <a href="#/tutor" style={styles.tutorLinkBtn} title="Ir a la sección de tutoría virtual 3D">
+          <Bot size={16} color="var(--color-sky)" />
+          <span>Preguntar al Docente Virtual</span>
+        </a>
+      </div>
 
       <div style={styles.grid}>
-        {/* Columna Principal: Video y Contexto */}
+        {/* Columna Principal: Video y Contexto Didáctico */}
         <div style={styles.videoColumn}>
           <div className="skylearn-card" style={styles.videoCard}>
             <div style={styles.iframeWrapper}>
@@ -119,20 +126,6 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
                 <p style={styles.contextText}>{lesson.contextText}</p>
               </div>
 
-              {/* Descargas */}
-              {lesson.downloadableUrl && (
-                <div style={styles.downloadRow}>
-                  <a
-                    href={lesson.downloadableUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={styles.downloadBtn}
-                  >
-                    <Download size={18} />
-                    <span>Descargar Guía y Material de Repaso</span>
-                  </a>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -142,7 +135,7 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
           {exam && exam.questions && exam.questions.length > 0 ? (
             <div className="skylearn-card" style={styles.examCard}>
               <div style={styles.examHeader}>
-                <HelpCircle size={22} color="var(--color-sky)" />
+                <HelpCircle size={20} color="var(--color-sky)" />
                 <div>
                   <h3 style={styles.examTitle}>{exam.title}</h3>
                   <span style={styles.examSubtitle}>Haz clic en una opción para responder</span>
@@ -154,11 +147,11 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
                   style={{
                     ...styles.scoreBadge,
                     backgroundColor: examScore >= 70 ? 'var(--color-leaf-soft)' : 'var(--color-coral-soft)',
-                    color: examScore >= 70 ? 'var(--color-leaf-deep)' : 'var(--color-coral-deep)',
+                    color: examScore >= 70 ? 'var(--color-leaf-deep)' : 'var(--color-coral)',
                     borderColor: examScore >= 70 ? 'var(--color-leaf)' : 'var(--color-coral)',
                   }}
                 >
-                  <Award size={20} />
+                  <Award size={18} />
                   <span>Resultado: {examScore}% ({examScore >= 70 ? '¡Aprobado!' : 'Requiere Repaso'})</span>
                 </div>
               )}
@@ -215,40 +208,31 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
                 onClick={handleCheckExam}
                 disabled={examSubmitted && examScore! >= 70}
                 className="btn-big-friendly"
-                style={{ width: '100%', marginTop: '16px' }}
+                style={{ width: '100%', marginTop: '16px', padding: '10px 16px' }}
               >
                 <span>{examSubmitted ? 'Volver a Intentar' : 'Comprobar Respuestas'}</span>
               </button>
             </div>
           ) : (
             <div className="skylearn-card" style={styles.noExamCard}>
-              <CheckCircle2 size={36} color="var(--color-leaf)" />
-              <h4 style={{ fontSize: '18px', fontWeight: 800 }}>¡Lección en Curso!</h4>
-              <p style={{ fontSize: '14px', color: 'var(--color-ink-muted)', textAlign: 'center' }}>
-                Mira el video con atención y revisa la variable de contexto pedagógico.
+              <CheckCircle2 size={32} color="var(--color-leaf)" />
+              <h4 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>¡Lección en Curso!</h4>
+              <p style={{ fontSize: '13px', color: 'var(--color-ink-muted)', textAlign: 'center', margin: '4px 0 12px 0' }}>
+                Mira el video con atención y repasa las notas formativas del docente.
               </p>
               <button
                 onClick={() => {
-                  confetti({ particleCount: 60 });
+                  confetti({ particleCount: 50 });
                   onCompleteLesson(lesson.id);
                 }}
                 className="btn-big-friendly"
-                style={{ marginTop: '16px' }}
+                style={{ padding: '8px 18px', fontSize: '13px' }}
               >
                 Marcar como Completada
               </button>
             </div>
           )}
         </div>
-      </div>
-
-      {/* Sección del Tutor Virtual 3D Multimodal con Visemas */}
-      <div style={{ marginTop: '36px' }}>
-        <TutorVirtual3D
-          lessonId={lesson.id}
-          lessonTitle={lesson.title}
-          onNavigate={onBack}
-        />
       </div>
     </div>
   );
@@ -258,22 +242,45 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: '1200px',
     margin: '0 auto',
-    padding: '28px 24px',
+    padding: '20px 16px',
+    width: '100%',
+  },
+  headerBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    marginBottom: '16px',
+    flexWrap: 'wrap',
   },
   backBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
     background: 'transparent',
     color: 'var(--color-sky-deep)',
     fontWeight: 700,
-    fontSize: '15px',
-    marginBottom: '20px',
+    fontSize: '14px',
+    cursor: 'pointer',
+  },
+  tutorLinkBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 12px',
+    borderRadius: 'var(--radius-full)',
+    backgroundColor: 'var(--color-sky-soft)',
+    color: 'var(--color-sky-deep)',
+    fontSize: '12px',
+    fontWeight: 700,
+    textDecoration: 'none',
+    border: '1px solid var(--color-sky)',
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: '1.4fr 1fr',
-    gap: '28px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: '20px',
+    alignItems: 'start',
   },
   videoColumn: {
     display: 'flex',
@@ -281,7 +288,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   videoCard: {
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'var(--color-surface-elevated)',
   },
   iframeWrapper: {
     position: 'relative',
@@ -299,45 +306,46 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
   },
   videoInfo: {
-    padding: '24px',
+    padding: '20px',
   },
   lessonTitle: {
-    fontSize: '24px',
+    fontSize: '20px',
     color: 'var(--color-ink)',
-    marginBottom: '16px',
+    marginBottom: '12px',
   },
   contextBox: {
     backgroundColor: 'var(--color-surface)',
-    padding: '18px',
-    borderRadius: 'var(--radius-md)',
+    padding: '14px',
+    borderRadius: 'var(--radius-sm)',
     border: '1px solid var(--color-outline)',
-    marginBottom: '18px',
+    marginBottom: '14px',
   },
   contextLabel: {
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: 800,
     color: 'var(--color-sky-deep)',
     display: 'block',
-    marginBottom: '6px',
+    marginBottom: '4px',
   },
   contextText: {
-    fontSize: '15px',
+    fontSize: '14px',
     color: 'var(--color-ink)',
-    lineHeight: 1.6,
+    lineHeight: 1.5,
+    margin: 0,
   },
   downloadRow: {
-    paddingTop: '8px',
+    paddingTop: '6px',
   },
   downloadBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '10px 18px',
+    gap: '6px',
+    padding: '8px 14px',
     borderRadius: 'var(--radius-full)',
     backgroundColor: 'var(--color-sky-soft)',
     color: 'var(--color-sky-deep)',
     fontWeight: 700,
-    fontSize: '14px',
+    fontSize: '13px',
     textDecoration: 'none',
   },
   examColumn: {
@@ -345,79 +353,81 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
   },
   examCard: {
-    padding: '24px',
-    backgroundColor: '#FFFFFF',
+    padding: '20px',
+    backgroundColor: 'var(--color-surface-elevated)',
   },
   examHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    marginBottom: '16px',
+    gap: '10px',
+    marginBottom: '14px',
   },
   examTitle: {
-    fontSize: '18px',
+    fontSize: '16px',
     color: 'var(--color-ink)',
+    margin: 0,
   },
   examSubtitle: {
-    fontSize: '13px',
+    fontSize: '12px',
     color: 'var(--color-ink-muted)',
   },
   scoreBadge: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '10px 14px',
-    borderRadius: 'var(--radius-md)',
+    gap: '6px',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-sm)',
     fontWeight: 800,
-    fontSize: '14px',
+    fontSize: '13px',
     border: '1px solid',
-    marginBottom: '16px',
+    marginBottom: '14px',
   },
   questionsList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px',
+    gap: '16px',
   },
   questionBlock: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
+    gap: '8px',
   },
   questionText: {
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: 700,
     color: 'var(--color-ink)',
+    margin: 0,
   },
   optionsContainer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '6px',
   },
   answerTile: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '12px 16px',
-    borderRadius: 'var(--radius-md)',
-    border: '2px solid',
+    gap: '10px',
+    padding: '10px 12px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1.5px solid',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
   },
   optRadio: {
-    fontSize: '16px',
+    fontSize: '14px',
     color: 'var(--color-sky-deep)',
   },
   optText: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--color-ink)',
     fontWeight: 600,
   },
   noExamCard: {
-    padding: '40px 24px',
-    backgroundColor: '#FFFFFF',
+    padding: '28px 16px',
+    backgroundColor: 'var(--color-surface-elevated)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '12px',
+    gap: '8px',
   },
 };

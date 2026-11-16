@@ -1,5 +1,5 @@
 // backend/src/modules/analytics/analytics.controller.ts
-import { Controller, Get, Post, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { RegisterDeviceDto } from './dto/register-device.dto';
@@ -34,5 +34,12 @@ export class AnalyticsController {
   @ApiResponse({ status: 200, description: 'Token registrado exitosamente' })
   async registerToken(@Request() req: any, @Body() dto: RegisterDeviceDto) {
     return this.analyticsService.registerDeviceToken(req.user.id, dto.pushToken);
+  }
+
+  @Delete('teacher/device-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.TEACHER)
+  async unregisterToken(@Request() req: any, @Body() dto: RegisterDeviceDto) {
+    return this.analyticsService.unregisterDeviceToken(req.user.id, dto.pushToken);
   }
 }

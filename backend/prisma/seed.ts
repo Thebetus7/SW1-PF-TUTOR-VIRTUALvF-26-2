@@ -12,7 +12,7 @@ async function main() {
   // 1. Usuario Estudiante Demo (con 3 créditos iniciales)
   const student = await prisma.user.upsert({
     where: { email: 'student@test.com' },
-    update: { passwordHash, name: 'Estudiante Demo', role: Role.STUDENT },
+    update: {},
     create: {
       email: 'student@test.com',
       name: 'Estudiante Demo',
@@ -23,14 +23,14 @@ async function main() {
 
   await prisma.creditAccount.upsert({
     where: { userId: student.id },
-    update: { balance: 3 },
+    update: {},
     create: { userId: student.id, balance: 3 },
   });
 
   // 2. Usuario Docente Demo
   const teacher = await prisma.user.upsert({
     where: { email: 'teacher@test.com' },
-    update: { passwordHash, name: 'Profesor Demo', role: Role.TEACHER },
+    update: {},
     create: {
       email: 'teacher@test.com',
       name: 'Profesor Demo',
@@ -42,7 +42,7 @@ async function main() {
   // 3. Usuario Administrador Demo
   await prisma.user.upsert({
     where: { email: 'admin@test.com' },
-    update: { passwordHash, name: 'Administrador Demo', role: Role.ADMIN },
+    update: {},
     create: {
       email: 'admin@test.com',
       name: 'Administrador Demo',

@@ -1,5 +1,5 @@
 // frontend-web/src/components/VirtualTutorEvaluatorModal.tsx
-import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from "react";
 import {
   X,
   Mic,
@@ -7,54 +7,87 @@ import {
   Send,
   Volume2,
   VolumeX,
-  Sparkles,
   CheckCircle2,
   Award,
   Bot,
   Activity,
-} from 'lucide-react';
-import confetti from 'canvas-confetti';
-import { api } from '../services/api';
+  Settings2,
+  RotateCcw,
+  Square,
+  Keyboard,
+  ChevronRight,
+} from "lucide-react";
+import confetti from "canvas-confetti";
+import { isAxiosError } from "axios";
+import { createPortal } from "react-dom";
+import "./tutor-evaluation.css";
+import { useTutorSpeech } from "../hooks/useTutorSpeech";
+import { TutorSpeechControls } from "./TutorSpeechControls";
+import {
+  GESTURE_LABELS,
+  type AvatarGesture,
+  type GestureSelection,
+} from "./avatarGestures";
+import { api } from "../services/api";
 import type {
   AvatarPoseType,
-  VisemeShape,
   VisemeFrame,
   SpeechSegment,
   FinalEvaluationSummary,
   TestConnectionResponse,
   StartModuleEvaluationResponse,
   AnswerModuleEvaluationResponse,
-} from '../types/tutor.types';
+} from "../types/tutor.types";
 
-const TutorAvatar3D = lazy(() => import('./TutorAvatar3D'));
+interface RecognitionResultEvent {
+  results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }>;
+}
+interface RecognitionEngine {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: RecognitionResultEvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+type RecognitionWindow = Window & {
+  SpeechRecognition?: new () => RecognitionEngine;
+  webkitSpeechRecognition?: new () => RecognitionEngine;
+};
+
+const TutorAvatar3D = lazy(() => import("./TutorAvatar"));
 
 const AvatarLoader: React.FC = () => (
   <div
     style={{
-      width: '100%',
-      maxWidth: 360,
-      aspectRatio: '360 / 330',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: '16px',
-      background: 'linear-gradient(160deg, #EFF6FF 0%, #DBEAFE 100%)',
-      color: 'var(--color-ink-muted)',
-      fontSize: '15px',
+      width: "100%",
+      maxWidth: 320,
+      aspectRatio: "320 / 280",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: "16px",
+      background: "var(--color-surface-sunken)",
+      color: "var(--color-ink-muted)",
+      fontSize: "14px",
       fontWeight: 600,
     }}
   >
-    Preparando al docente 3D…
+    Preparando al docente virtual…
   </div>
 );
 
-/** Lenguaje natural para el estado del docente (evita jerga técnica en pantalla). */
+/** Lenguaje natural para el estado del docente */
 const POSE_LABELS: Record<AvatarPoseType, string> = {
-  idle: 'esperando tu respuesta',
-  explaining: 'explicando el tema',
-  listening: 'escuchándote con atención',
-  celebrating: 'felicitándote por tu avance',
-  encouraging: 'animándote a seguir',
+  idle: "esperando tu respuesta",
+  explaining: "explicando el tema",
+  listening: "escuchándote con atención",
+  celebrating: "felicitándote por tu avance",
+  encouraging: "animándote a seguir",
 };
 
 interface VirtualTutorEvaluatorModalProps {
@@ -65,160 +98,215 @@ interface VirtualTutorEvaluatorModalProps {
   onFinish?: (summary: FinalEvaluationSummary) => void;
 }
 
-export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProps> = ({
-  moduleId,
-  moduleTitle,
-  isSimulation = false,
-  onClose,
-  onFinish,
-}) => {
+export const VirtualTutorEvaluatorModal: React.FC<
+  VirtualTutorEvaluatorModalProps
+> = ({ moduleId, moduleTitle, isSimulation = false, onClose, onFinish }) => {
   // Estados de la sesión evaluativa
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const settingsPanelRef = useRef<HTMLElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const settingsWereOpenRef = useRef(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = () => {
+      if (settingsOpen) setSettingsOpen(false);
+      else onClose();
+    };
+  }, [onClose, settingsOpen]);
+  useEffect(() => {
+    if (settingsOpen)
+      settingsPanelRef.current
+        ?.querySelector<HTMLButtonElement>("button")
+        ?.focus();
+    else if (settingsWereOpenRef.current) settingsButtonRef.current?.focus();
+    settingsWereOpenRef.current = settingsOpen;
+  }, [settingsOpen]);
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]',
+        ) || [],
+      ).filter(
+        (el) => el.getClientRects().length > 0 && !el.closest("[inert]"),
+      );
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener("keydown", onKey);
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, []);
   const [loading, setLoading] = useState<boolean>(true);
   const [totalLessons, setTotalLessons] = useState<number>(0);
   const [currentLessonIndex, setCurrentLessonIndex] = useState<number>(0);
-  const [currentLessonTitle, setCurrentLessonTitle] = useState<string>('');
+  const [currentLessonTitle, setCurrentLessonTitle] = useState<string>("");
   const [dialogueHistory, setDialogueHistory] = useState<
-    Array<{ sender: 'tutor' | 'student'; text: string; isCorrect?: boolean }>
+    Array<{ sender: "tutor" | "student"; text: string; isCorrect?: boolean }>
   >([]);
 
+  // Siguiente pregunta pendiente para avance fluido
+  const [pendingNextQuestion, setPendingNextQuestion] = useState<{
+    lessonIndex: number;
+    lessonTitle: string;
+    questionText: string;
+    visemes?: VisemeFrame[];
+  } | null>(null);
+
   // Estados del avatar y audio
-  const [pose, setPose] = useState<AvatarPoseType>('idle');
-  const [currentViseme, setCurrentViseme] = useState<VisemeShape>('sil');
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [gestureSelection, setGestureSelection] =
+    useState<GestureSelection>("auto");
+  const [activeGesture, setActiveGesture] = useState<AvatarGesture>("rest");
+  const [pose, setPose] = useState<AvatarPoseType>("idle");
   const [isListening, setIsListening] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
+  // Referencia viva para el estado de sonido (evita stale closure en callbacks de audio)
+  const soundEnabledRef = useRef<boolean>(true);
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
+
   // Estados de entrada del estudiante
-  const [inputText, setInputText] = useState<string>('');
-  const [interimVoiceText, setInterimVoiceText] = useState<string>('');
+  const [inputText, setInputText] = useState<string>("");
+  const [interimVoiceText, setInterimVoiceText] = useState<string>("");
   const [processingAnswer, setProcessingAnswer] = useState<boolean>(false);
+  const processingRef = useRef(false);
+  const [voiceError, setVoiceError] = useState("");
 
   // Estados de diagnóstico de la API de Google
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
-  const [apiConnectionStatus, setApiConnectionStatus] = useState<string | null>(null);
+  const [apiConnectionStatus, setApiConnectionStatus] = useState<string | null>(
+    null,
+  );
 
   // Estado de finalización
-  const [finalSummary, setFinalSummary] = useState<FinalEvaluationSummary | null>(null);
+  const [finalSummary, setFinalSummary] =
+    useState<FinalEvaluationSummary | null>(null);
 
   // Referencias para reconocimiento de voz y temporizadores
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<RecognitionEngine | null>(null);
   const visemeTimersRef = useRef<number[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll del historial de diálogo
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [dialogueHistory, interimVoiceText]);
+    const messages = messagesScrollRef.current;
+    messages?.scrollTo({
+      top: messages.scrollHeight,
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }, [dialogueHistory, interimVoiceText, pendingNextQuestion]);
 
   const clearVisemeTimers = () => {
     visemeTimersRef.current.forEach((t) => clearTimeout(t));
     visemeTimersRef.current = [];
   };
 
-  // Limpieza de síntesis de voz y visemas al desmontar
+  // Silenciar / Activar sonido con cancelación inmediata
+  const handleToggleSound = () => {
+    const nextSound = !soundEnabled;
+    setSoundEnabled(nextSound);
+    soundEnabledRef.current = nextSound;
+
+    if (!nextSound) {
+      speech.stop();
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      clearVisemeTimers();
+      setPose("idle");
+    }
+  };
+
+  // Limpieza total al desmontar
   useEffect(() => {
     return () => {
       clearVisemeTimers();
-      if ('speechSynthesis' in window) {
+      if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
       if (recognitionRef.current) {
-        recognitionRef.current.abort();
+        try {
+          recognitionRef.current.abort();
+        } catch {}
       }
     };
   }, []);
 
-  // Reproducir visemas temporizados, timeline de posturas y voz con Web Speech API
+  const speech = useTutorSpeech();
+  const sessionIdRef = useRef("");
+  const [voiceConversation, setVoiceConversation] = useState(false);
+  const voiceConversationRef = useRef(false);
+  useEffect(() => {
+    voiceConversationRef.current = voiceConversation;
+  }, [voiceConversation]);
+  const startListeningRef = useRef<() => void>(() => {});
+  const submitRef = useRef<(text: string) => void>(() => {});
+  const isSpeaking = speech.speaking;
+  const currentViseme = speech.viseme;
   const speakAndAnimate = (
     text: string,
-    visemes: VisemeFrame[],
-    targetPose: AvatarPoseType = 'explaining',
-    segments?: SpeechSegment[],
+    _visemes: VisemeFrame[],
+    targetPose: AvatarPoseType = "explaining",
+    _segments?: SpeechSegment[],
+    onComplete?: () => void,
   ) => {
-    clearVisemeTimers();
-    setIsSpeaking(true);
-
-    const resolvedSegments: SpeechSegment[] =
-      segments && segments.length > 0 ? segments : [{ text, pose: targetPose }];
-
-    // Programar visemas de labios
-    visemes.forEach((frame) => {
-      const timer = window.setTimeout(() => {
-        setCurrentViseme(frame.shape);
-      }, frame.timeMs);
-      visemeTimersRef.current.push(timer);
-    });
-
-    const lastTime = visemes[visemes.length - 1]?.timeMs || 2500;
-    const finalTimer = window.setTimeout(() => {
-      setCurrentViseme('sil');
-    }, lastTime + 250);
-    visemeTimersRef.current.push(finalTimer);
-
-    if (soundEnabled && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-
-      let currentSegmentIdx = 0;
-      const playNextSegment = () => {
-        if (currentSegmentIdx >= resolvedSegments.length) {
-          setIsSpeaking(false);
-          setCurrentViseme('sil');
-          setPose('idle');
-          return;
-        }
-
-        const currentSeg = resolvedSegments[currentSegmentIdx];
-        setPose(currentSeg.pose);
-
-        const utterance = new SpeechSynthesisUtterance(currentSeg.text);
-        utterance.lang = 'es-ES';
-        utterance.rate = 1.02;
-        utterance.pitch = 1.05; // Voz docente profesional y cálida
-
-        utterance.onend = () => {
-          currentSegmentIdx++;
-          playNextSegment();
-        };
-
-        utterance.onerror = () => {
-          currentSegmentIdx++;
-          playNextSegment();
-        };
-
-        window.speechSynthesis.speak(utterance);
-      };
-
-      playNextSegment();
-    } else {
-      // Modo sin audio: temporizar dinámicamente el cambio de poses según la longitud de cada segmento
-      let accumulatedTime = 0;
-      resolvedSegments.forEach((seg) => {
-        const segDurationMs = Math.max(1400, seg.text.length * 60);
-        const timer = window.setTimeout(() => {
-          setPose(seg.pose);
-        }, accumulatedTime);
-        visemeTimersRef.current.push(timer);
-        accumulatedTime += segDurationMs;
-      });
-
-      const totalDuration = Math.max(accumulatedTime, lastTime + 300);
-      const endTimer = window.setTimeout(() => {
-        setIsSpeaking(false);
-        setCurrentViseme('sil');
-        setPose('idle');
-      }, totalDuration);
-      visemeTimersRef.current.push(endTimer);
+    setPose(targetPose);
+    if (!soundEnabledRef.current) {
+      onComplete?.();
+      return;
     }
+    void speech.speak(text, () => {
+      setPose("idle");
+      onComplete?.();
+      if (!onComplete && voiceConversationRef.current)
+        startListeningRef.current();
+    });
   };
-
+  const speakAndAnimateRef = useRef(speakAndAnimate);
+  useEffect(() => {
+    speakAndAnimateRef.current = speakAndAnimate;
+  });
   // Cargar inicio de evaluación modular
   useEffect(() => {
+    let isMounted = true;
     const initEvaluation = async () => {
       setLoading(true);
       try {
-        const res = await api.post<StartModuleEvaluationResponse>('/tutor/module-evaluation/start', {
-          moduleId,
-        });
+        const res = await api.post<StartModuleEvaluationResponse>(
+          "/tutor/module-evaluation/start",
+          {
+            moduleId,
+          },
+        );
+        sessionIdRef.current = res.data.sessionId;
+
+        if (!isMounted) return;
 
         const data = res.data;
         setTotalLessons(data.totalLessons);
@@ -227,164 +315,229 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
 
         setDialogueHistory([
           {
-            sender: 'tutor',
-            text: `¡Bienvenido a la evaluación del módulo "${data.moduleTitle}"! Evaluaremos 1 pregunta clave por cada lección. Comenzamos con la lección: "${data.currentLessonTitle}".\n\n${data.questionText}`,
+            sender: "tutor",
+            text: data.questionText,
           },
         ]);
 
-        speakAndAnimate(
-          `¡Bienvenido a la evaluación! Evaluaremos una pregunta clave por cada lección. Comenzamos con ${data.currentLessonTitle}. ${data.questionText}`,
+        speakAndAnimateRef.current(
+          data.questionText,
           data.visemes,
-          'explaining',
-          data.speechSegments
+          "explaining",
+          data.speechSegments,
         );
-      } catch (err: any) {
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        const responseMessage = isAxiosError<{
+          detail?: string;
+          message?: string | string[];
+        }>(err)
+          ? err.response?.data
+          : undefined;
         const errorMsg =
-          err.response?.data?.detail ||
-          err.response?.data?.message ||
-          'Error al iniciar la evaluación con el Docente Virtual.';
+          responseMessage?.detail ||
+          responseMessage?.message ||
+          "Error al iniciar la sesión con el Docente Virtual.";
         setDialogueHistory([
           {
-            sender: 'tutor',
+            sender: "tutor",
             text: `Hubo un inconveniente: ${errorMsg}`,
           },
         ]);
-        setPose('encouraging');
+        setPose("encouraging");
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     initEvaluation();
+
+    return () => {
+      isMounted = false;
+    };
   }, [moduleId]);
 
-  // Botón discreto: Probar Conexión en Vivo con Google Gemini
+  // Probar Conexión con IA Google Gemini
   const handleTestConnection = async () => {
     if (testingConnection) return;
     setTestingConnection(true);
-    setApiConnectionStatus('Consultando Google Gemini en vivo...');
+    setApiConnectionStatus("Consultando IA...");
 
     try {
-      const res = await api.post<TestConnectionResponse>('/tutor/test-connection', {
-        demoMode: true,
-      });
+      const res = await api.post<TestConnectionResponse>(
+        "/tutor/test-connection",
+        {
+          demoMode: true,
+        },
+      );
 
       const { phrase, timestamp, visemes } = res.data;
-      const formattedTime = new Date(timestamp).toLocaleTimeString();
+      const formattedTime = new Date(timestamp).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
-      setApiConnectionStatus(`Google Gemini Conectado (En Vivo ${formattedTime})`);
+      setApiConnectionStatus(
+        res.data.success
+          ? `IA Conectada (${formattedTime})`
+          : "IA no disponible",
+      );
 
       setDialogueHistory((prev) => [
         ...prev,
         {
-          sender: 'tutor',
-          text: `[Prueba de Conexión Google API]: "${phrase}"`,
+          sender: "tutor",
+          text: `[Prueba de Conexión]: "${phrase}"`,
         },
       ]);
 
-      speakAndAnimate(phrase, visemes, 'explaining');
+      speakAndAnimate(phrase, visemes, "explaining");
     } catch {
-      setApiConnectionStatus('Error al conectar con la API de Google');
+      setApiConnectionStatus("Error en API");
     } finally {
       setTestingConnection(false);
     }
   };
 
-  // Manejo del Reconocimiento de Voz con Web Speech API (1 toque)
+  // Reconocimiento de Voz
   const toggleSpeechRecognition = () => {
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      (window as RecognitionWindow).SpeechRecognition ||
+      (window as RecognitionWindow).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('Tu navegador no soporta Web Speech API nativa. Puedes escribir tu respuesta en el cuadro de texto.');
+      setVoiceError(
+        "Este navegador no dispone de reconocimiento de voz. Puedes escribir tu respuesta.",
+      );
+      setVoiceConversation(false);
       return;
     }
 
     if (isListening) {
-      // Detener captura manual
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
       setIsListening(false);
-      setPose('idle');
+      setPose("idle");
       return;
     }
 
-    // Iniciar reconocimiento
     try {
+      speech.stop();
+      setVoiceError("");
+      let failed = false;
+      let finalTranscript = "";
       const recognition = new SpeechRecognition();
-      recognition.lang = 'es-ES';
+      recognition.lang = "es-ES";
       recognition.interimResults = true;
       recognition.continuous = false;
 
       recognition.onstart = () => {
         setIsListening(true);
-        setPose('listening'); // Brazo en mentón al escuchar
-        setInterimVoiceText('');
+        setPose("listening");
+        setInterimVoiceText("");
       };
 
-      recognition.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+      recognition.onresult = (event: RecognitionResultEvent) => {
+        let transcript = "";
+        for (let i = 0; i < event.results.length; ++i) {
           transcript += event.results[i][0].transcript;
         }
+        if (event.results[event.results.length - 1].isFinal)
+          finalTranscript = transcript;
         setInterimVoiceText(transcript);
         setInputText(transcript);
       };
 
       recognition.onerror = () => {
+        failed = true;
+        setVoiceError(
+          "No pudimos escuchar tu respuesta. Revisa el permiso del micrófono o escribe tu respuesta.",
+        );
+        setVoiceConversation(false);
         setIsListening(false);
-        setPose('idle');
+        setPose("idle");
       };
 
       recognition.onend = () => {
         setIsListening(false);
-        setPose('idle');
-        // Si se capturó texto por voz, enviarlo automáticamente
-        if (inputText.trim() || interimVoiceText.trim()) {
-          const finalTxt = (interimVoiceText || inputText).trim();
-          handleSendAnswer(finalTxt);
-        }
+        setPose("idle");
+        if (!failed && voiceConversationRef.current && finalTranscript.trim())
+          submitRef.current(finalTranscript);
       };
 
       recognitionRef.current = recognition;
       recognition.start();
     } catch {
       setIsListening(false);
-      setPose('idle');
+      setPose("idle");
     }
+  };
+
+  // Avanzar a la siguiente pregunta de forma suave y controlada
+  const handleAdvanceToNextQuestion = (nextQ: {
+    lessonIndex: number;
+    lessonTitle: string;
+    questionText: string;
+    visemes?: VisemeFrame[];
+  }) => {
+    setPendingNextQuestion(null);
+    setCurrentLessonIndex(nextQ.lessonIndex);
+    setCurrentLessonTitle(nextQ.lessonTitle);
+
+    setDialogueHistory((prev) => [
+      ...prev,
+      {
+        sender: "tutor",
+        text: nextQ.questionText,
+      },
+    ]);
+
+    const nextVisemes =
+      nextQ.visemes && nextQ.visemes.length > 0 ? nextQ.visemes : [];
+    speakAndAnimate(nextQ.questionText, nextVisemes, "explaining");
   };
 
   // Enviar respuesta a la lección actual
   const handleSendAnswer = async (customAnswer?: string) => {
-    const answerToSend = (customAnswer !== undefined ? customAnswer : inputText).trim();
-    if (!answerToSend || processingAnswer || finalSummary) return;
+    const answerToSend = (
+      customAnswer !== undefined ? customAnswer : inputText
+    ).trim();
+    if (!answerToSend || processingRef.current || finalSummary) return;
+    processingRef.current = true;
+    speech.stop();
 
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {}
       setIsListening(false);
     }
 
     setDialogueHistory((prev) => [
       ...prev,
       {
-        sender: 'student',
+        sender: "student",
         text: answerToSend,
       },
     ]);
 
-    setInputText('');
-    setInterimVoiceText('');
+    setInputText("");
+    setInterimVoiceText("");
     setProcessingAnswer(true);
-    setPose('idle');
+    setPose("idle");
 
     try {
-      const res = await api.post<AnswerModuleEvaluationResponse>('/tutor/module-evaluation/answer', {
-        moduleId,
-        lessonIndex: currentLessonIndex,
-        userResponse: answerToSend,
-        isSimulation: Boolean(isSimulation),
-      });
+      const res = await api.post<AnswerModuleEvaluationResponse>(
+        "/tutor/module-evaluation/answer",
+        {
+          moduleId,
+          sessionId: sessionIdRef.current,
+          lessonIndex: currentLessonIndex,
+          userResponse: answerToSend,
+          isSimulation: Boolean(isSimulation),
+        },
+      );
 
       const {
         isCorrect,
@@ -397,707 +550,565 @@ export const VirtualTutorEvaluatorModal: React.FC<VirtualTutorEvaluatorModalProp
         finalSummary: summary,
       } = res.data;
 
-      // Actualizar diálogo con retroalimentación del docente
+      // 1. Mostrar feedback del docente en el diálogo
       setDialogueHistory((prev) => [
         ...prev,
         {
-          sender: 'tutor',
+          sender: "tutor",
           text: feedbackText,
           isCorrect,
         },
       ]);
 
-      speakAndAnimate(feedbackText, visemes, avatarEmotion, speechSegments);
-
       if (isCorrect) {
         confetti({
-          particleCount: 50,
-          spread: 60,
+          particleCount: 40,
+          spread: 50,
           origin: { y: 0.6 },
         });
       }
 
+      // 2. Si hay siguiente lección, prepararla sin interrumpir la voz del docente
       if (hasNextLesson && nextQuestion) {
-        // Avanzar a la siguiente lección
-        setCurrentLessonIndex(nextQuestion.lessonIndex);
-        setCurrentLessonTitle(nextQuestion.lessonTitle);
+        const nextQData = {
+          lessonIndex: nextQuestion.lessonIndex,
+          lessonTitle: nextQuestion.lessonTitle,
+          questionText: nextQuestion.questionText,
+          visemes,
+        };
 
-        setTimeout(() => {
-          setDialogueHistory((prev) => [
-            ...prev,
-            {
-              sender: 'tutor',
-              text: `Pregunta de la lección "${nextQuestion.lessonTitle}":\n${nextQuestion.questionText}`,
-            },
-          ]);
-          // Pronunciar la siguiente pregunta
-          const nextVisemes = visemes.slice(0, 20);
-          speakAndAnimate(nextQuestion.questionText, nextVisemes, 'explaining');
-        }, 3200);
+        setPendingNextQuestion(nextQData);
+        // El docente habla su retroalimentación
+        speakAndAnimate(
+          feedbackText,
+          visemes,
+          avatarEmotion,
+          speechSegments,
+          () => {
+            // Al terminar la locución del docente, activar el botón o avance con respiro
+            if (voiceConversationRef.current)
+              handleAdvanceToNextQuestion(nextQData);
+            else setPendingNextQuestion(nextQData);
+          },
+        );
+
+        // Si no hay voz activa, dejamos el estado listo para que el estudiante avance cuando guste
+        if (!soundEnabledRef.current) {
+          setPendingNextQuestion(nextQData);
+        }
       } else if (summary) {
-        // Conclusión del módulo
         setFinalSummary(summary);
-        setPose(summary.approved ? 'celebrating' : 'encouraging');
-        if (summary.approved) {
-          confetti({
-            particleCount: 120,
-            spread: 90,
-            origin: { y: 0.5 },
-          });
-        }
-        if (onFinish) {
-          onFinish(summary);
-        }
+        speakAndAnimate(feedbackText, visemes, avatarEmotion, speechSegments);
+        if (summary.approved)
+          confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
       }
-    } catch {
-      const errReply = 'No pudimos validar la respuesta en este momento. Intenta nuevamente.';
+    } catch (error: unknown) {
+      const status = isAxiosError(error) ? error.response?.status : undefined;
+      const errReply = status === 503
+        ? "El servicio de inteligencia artificial no está disponible o tardó demasiado. Tu respuesta se conserva; inténtalo de nuevo."
+        : status === 409
+          ? "Esta pregunta ya fue procesada o la sesión quedó desactualizada. Cierra la evaluación y vuelve a iniciarla."
+          : status === 400
+            ? "La sesión de evaluación ya no es válida. Cierra la evaluación y vuelve a iniciarla."
+            : status === 401
+              ? "Tu sesión ha expirado. Inicia sesión nuevamente para continuar."
+              : isAxiosError(error) && !error.response
+                ? "No hay conexión con el servidor. Comprueba que el backend esté iniciado; tu respuesta se conserva."
+                : "Ocurrió un error en el servidor al evaluar tu respuesta. Tu respuesta se conserva; inténtalo de nuevo.";
       setDialogueHistory((prev) => [
         ...prev,
         {
-          sender: 'tutor',
+          sender: "tutor",
           text: errReply,
         },
       ]);
-      setPose('encouraging');
+      setInputText(answerToSend);
+      setVoiceConversation(false);
+      setPose("encouraging");
     } finally {
+      processingRef.current = false;
       setProcessingAnswer(false);
     }
   };
 
-  return (
-    <div style={styles.overlay}>
-      <div style={styles.modal} role="dialog" aria-modal="true">
-        {/* Barra Superior con Diagnóstico y Controles */}
-        <div style={styles.topBar}>
-          <div style={styles.topBarLeft}>
-            <div style={styles.tutorBadge}>
-              <Bot size={18} color="#2563EB" />
-              <span style={styles.tutorTitle}>Docente Virtual Humano • Skylearn</span>
+  useEffect(() => {
+    submitRef.current = (text) => {
+      void handleSendAnswer(text);
+    };
+    startListeningRef.current = () => {
+      if (
+        !finalSummary &&
+        !processingAnswer &&
+        !isListening &&
+        !pendingNextQuestion
+      )
+        toggleSpeechRecognition();
+    };
+  });
+  const statusLabel = loading
+    ? "Preparando la conversación"
+    : processingAnswer
+      ? "Revisando tu respuesta"
+      : isListening
+        ? "Te escucho"
+        : isSpeaking
+          ? "Sky está hablando"
+          : `Sky está ${POSE_LABELS[pose]}`;
+  const latestTutorIndex = dialogueHistory.findLastIndex(
+    (item) => item.sender === "tutor",
+  );
+  const changeMode = (voice: boolean) => {
+    setVoiceConversation(voice);
+    if (
+      voice &&
+      !isListening &&
+      !loading &&
+      !processingAnswer &&
+      !speech.speaking &&
+      !pendingNextQuestion
+    )
+      toggleSpeechRecognition();
+    if (!voice) recognitionRef.current?.abort();
+  };
+  return createPortal(
+    <div className="tutor-room-backdrop">
+      <div
+        className="tutor-room"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tutor-room-title"
+      >
+        <header className="tutor-room-header" inert={settingsOpen}>
+          <div className="tutor-room-heading">
+            <span className="tutor-room-brand">
+              <Bot size={24} />
+            </span>
+            <div>
+              <h2 id="tutor-room-title">Conversemos con Sky</h2>
+              <p>
+                {moduleTitle}
+                {isSimulation && (
+                  <span className="tutor-room-tag">Vista docente</span>
+                )}
+              </p>
             </div>
+          </div>
+          <div className="tutor-room-header-actions">
+            <button
+              className="tutor-icon-action"
+              onClick={handleToggleSound}
+              title={soundEnabled ? "Silenciar voz" : "Activar voz"}
+              aria-label={soundEnabled ? "Silenciar voz" : "Activar voz"}
+            >
+              {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            </button>
+            <button
+              ref={settingsButtonRef}
+              className="tutor-icon-action"
+              onClick={() => setSettingsOpen((value) => !value)}
+              aria-expanded={settingsOpen}
+              aria-controls="tutor-room-settings"
+              title="Ajustes"
+              aria-label="Ajustes"
+            >
+              <Settings2 size={20} />
+            </button>
+            <button
+              ref={closeButtonRef}
+              className="tutor-icon-action"
+              onClick={onClose}
+              aria-label="Cerrar evaluación"
+              title="Cerrar"
+            >
+              <X size={22} />
+            </button>
+          </div>
+        </header>
 
-            {isSimulation && (
+        <div className="tutor-room-workspace" inert={settingsOpen}>
+          <aside className="tutor-room-stage">
+            <div className="tutor-room-presence">
               <span
-                style={{
-                  backgroundColor: '#F3E8FF',
-                  color: '#7E22CE',
-                  border: '1px solid #E9D5FF',
-                  padding: '4px 10px',
-                  borderRadius: '999px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <Sparkles size={12} color="#7E22CE" />
-                <span>Modo Simulación • Sin Calificación</span>
-              </span>
-            )}
-
-            {/* Botón Discreto de Prueba de Conexión con Google API */}
-            <button
-              onClick={handleTestConnection}
-              disabled={testingConnection}
-              style={{
-                ...styles.testConnectionBtn,
-                opacity: testingConnection ? 0.7 : 1,
-              }}
-              title="Presiona para generar una frase en tiempo real con Google Gemini y probar audio"
-            >
-              <Activity size={13} color="#2563EB" />
-              <span>{testingConnection ? 'Probando...' : 'Probar Conexión IA'}</span>
-            </button>
-
-            {apiConnectionStatus && (
-              <span style={styles.statusPill}>
-                <span style={styles.onlineDot} />
-                {apiConnectionStatus}
-              </span>
-            )}
-          </div>
-
-          <div style={styles.topBarRight}>
-            <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              style={styles.soundBtn}
-              title={soundEnabled ? 'Silenciar voz del tutor' : 'Activar voz del tutor'}
-            >
-              {soundEnabled ? <Volume2 size={18} color="#1E293B" /> : <VolumeX size={18} color="#94A3B8" />}
-            </button>
-            <button onClick={onClose} style={styles.closeBtn} aria-label="Cerrar evaluación">
-              <X size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* Contenido Principal: Dos Columnas (Avatar y Diálogo) */}
-        <div style={styles.mainGrid}>
-          {/* Columna Izquierda: Docente virtual 3D (WebGL) */}
-          <div style={styles.avatarColumn}>
-            <div style={styles.avatarCard}>
+                className={
+                  isSpeaking || isListening
+                    ? "tutor-presence-dot is-active"
+                    : "tutor-presence-dot"
+                }
+              />
+              <span role="status">{statusLabel}</span>
+            </div>
+            <div className="tutor-room-avatar">
               <Suspense fallback={<AvatarLoader />}>
                 <TutorAvatar3D
+                  speechText={speech.text}
+                  spokenEnd={speech.range.start + speech.range.length}
+                  gestureSelection={gestureSelection}
+                  onGestureChange={setActiveGesture}
+                  gender={speech.gender}
                   pose={pose}
                   viseme={currentViseme}
                   isSpeaking={isSpeaking}
-                  isListening={isListening || pose === 'listening'}
+                  isListening={isListening}
                   width={360}
-                  height={330}
+                  height={380}
                 />
               </Suspense>
-
-              {/* Indicador de Estado del Avatar */}
-              <div style={styles.avatarStateBar}>
-                {isSpeaking && (
-                  <span style={styles.stateSpeaking}>
-                    <Sparkles size={13} />
-                    <span>El docente está hablando…</span>
-                  </span>
-                )}
-                {isListening && (
-                  <span style={styles.stateListening}>
-                    <Mic size={13} />
-                    <span>Escuchando tu respuesta…</span>
-                  </span>
-                )}
-                {!isSpeaking && !isListening && (
-                  <span style={styles.stateIdle}>
-                    <span>El docente está {POSE_LABELS[pose]}</span>
-                  </span>
-                )}
-              </div>
             </div>
-
-            {/* Progreso del Módulo */}
-            <div style={styles.progressCard}>
-              <div style={styles.progressHeader}>
-                <span style={styles.progressLabel}>Progreso del Módulo:</span>
-                <span style={styles.progressCounter}>
-                  Lección {Math.min(currentLessonIndex + 1, totalLessons)} de {totalLessons}
-                </span>
-              </div>
-              <div style={styles.progressBarBg}>
-                <div
-                  style={{
-                    ...styles.progressBarFill,
-                    width: `${totalLessons > 0 ? ((currentLessonIndex + (finalSummary ? 1 : 0)) / totalLessons) * 100 : 0}%`,
-                  }}
+            <div className="tutor-room-stage-footer">
+              <h3>Un paso a la vez</h3>
+              <p>Escucha, pregunta y responde a tu ritmo.</p>
+              <div className="tutor-room-progress">
+                <div>
+                  <span>Tu recorrido</span>
+                  <strong>
+                    {loading
+                      ? "Preparando…"
+                      : `${Math.min(currentLessonIndex + 1, Math.max(1, totalLessons))} de ${totalLessons} lecciones`}
+                  </strong>
+                </div>
+                <progress
+                  aria-label="Progreso de la evaluación"
+                  max={Math.max(1, totalLessons)}
+                  value={currentLessonIndex + (finalSummary ? 1 : 0)}
                 />
+                <span>{currentLessonTitle || moduleTitle}</span>
               </div>
-              <span style={styles.moduleNameText}>
-                Módulo: {moduleTitle} {currentLessonTitle ? `• ${currentLessonTitle}` : ''}
-              </span>
             </div>
-          </div>
+          </aside>
 
-          {/* Columna Derecha: Diálogo Evaluativo e Interacción */}
-          <div style={styles.dialogueColumn}>
-            {/* Pantalla Final de Dictamen Pedagógico */}
+          <section
+            className="tutor-room-conversation"
+            aria-label="Conversación con el docente"
+          >
+            <div className="tutor-conversation-heading">
+              <div>
+                <span className="tutor-conversation-label">
+                  {finalSummary ? "Tu resultado" : "Estamos aprendiendo sobre"}
+                </span>
+                <h3>{currentLessonTitle || moduleTitle}</h3>
+              </div>
+              <div className="tutor-playback-actions">
+                <button
+                  className="tutor-icon-action"
+                  onClick={speech.repeat}
+                  disabled={!speech.text || !soundEnabled}
+                  title="Volver a escuchar"
+                  aria-label="Volver a escuchar"
+                >
+                  <RotateCcw size={18} />
+                </button>
+                <button
+                  className="tutor-icon-action"
+                  onClick={speech.stop}
+                  disabled={!speech.speaking}
+                  title="Detener explicación"
+                  aria-label="Detener explicación"
+                >
+                  <Square size={16} />
+                </button>
+              </div>
+            </div>
             {finalSummary ? (
-              <div style={styles.finalSummaryCard}>
-                <div style={styles.summaryBadge}>
-                  <Award size={36} color={isSimulation ? '#7E22CE' : finalSummary.approved ? '#059669' : '#D97706'} />
-                  <h3 style={styles.summaryTitle}>
-                    {isSimulation
-                      ? '¡Verificación Técnica Exitosa!'
-                      : finalSummary.approved
-                      ? '¡Evaluación Aprobada con Éxito!'
-                      : 'Evaluación Completada'}
-                  </h3>
-                  <span style={styles.summaryScore}>
-                    {isSimulation ? (
-                      <span style={{ color: '#7E22CE', fontWeight: 600 }}>
-                        Prueba interactiva completada • Sin registro de notas en historiales de alumnos
-                      </span>
-                    ) : (
-                      <>
-                        Calificación formativa: <strong>{finalSummary.scorePercentage}%</strong>
-                      </>
-                    )}
-                  </span>
-                </div>
-                <p style={styles.summaryRemarks}>{finalSummary.closingRemarks}</p>
-                <div style={styles.summaryActions}>
-                  <button onClick={onClose} className="btn-primary" style={{ padding: '10px 24px' }}>
-                    <CheckCircle2 size={18} />
-                    <span>{isSimulation ? 'Finalizar Simulación y Volver al Temario' : 'Finalizar y Volver al Temario'}</span>
-                  </button>
-                </div>
+              <div className="tutor-result">
+                <Award size={48} />
+                <h3>
+                  {finalSummary.approved
+                    ? "¡Buen trabajo!"
+                    : "Seguimos aprendiendo"}
+                </h3>
+                <strong className="tutor-result-score">
+                  {finalSummary.scorePercentage}%
+                </strong>
+                <p>{finalSummary.closingRemarks}</p>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    onFinish?.(finalSummary);
+                    onClose();
+                  }}
+                >
+                  <CheckCircle2 size={18} />
+                  Finalizar sesión
+                </button>
               </div>
             ) : (
               <>
-                {/* Historial de Preguntas y Respuestas */}
-                <div style={styles.messagesBox}>
+                <div
+                  ref={messagesScrollRef}
+                  className="tutor-conversation-messages"
+                  role="log"
+                  aria-label="Historial de la conversación"
+                >
                   {loading && (
-                    <div style={styles.loadingBubble}>
-                      <Bot size={18} color="#2563EB" />
-                      <span>El Docente Virtual está organizando las preguntas del módulo...</span>
+                    <div className="tutor-room-loading">
+                      <span className="tutor-loading-dots" aria-hidden="true">
+                        •••
+                      </span>
+                      <p>Sky está preparando tu primera pregunta.</p>
                     </div>
                   )}
-
-                  {dialogueHistory.map((item, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        ...styles.bubble,
-                        ...(item.sender === 'tutor' ? styles.tutorBubble : styles.studentBubble),
-                      }}
-                    >
-                      <div style={styles.bubbleHeader}>
-                        <span style={styles.senderName}>
-                          {item.sender === 'tutor' ? 'Docente Virtual' : 'Tú (Estudiante)'}
-                        </span>
-                        {item.isCorrect !== undefined && (
-                          <span
-                            style={{
-                              ...styles.correctTag,
-                              backgroundColor: item.isCorrect ? '#DEF7EC' : '#FEF3C7',
-                              color: item.isCorrect ? '#046C4E' : '#92400E',
-                            }}
-                          >
-                            {item.isCorrect ? 'Acierto' : 'Refuerzo'}
-                          </span>
-                        )}
-                      </div>
-                      <p style={styles.bubbleText}>{item.text}</p>
-                    </div>
-                  ))}
-
-                  {/* Transcripción en tiempo real de voz */}
-                  {isListening && interimVoiceText && (
-                    <div style={{ ...styles.bubble, ...styles.studentBubble, opacity: 0.85 }}>
-                      <span style={styles.senderName}>Escuchando por voz:</span>
-                      <p style={styles.bubbleText}>{interimVoiceText}</p>
-                    </div>
-                  )}
-
+                  {dialogueHistory.map((item, idx) => {
+                    const active =
+                      item.sender === "tutor" &&
+                      idx === latestTutorIndex &&
+                      isSpeaking;
+                    const text = active ? speech.text : item.text;
+                    const start = active ? speech.range.start : 0;
+                    const end = active ? start + speech.range.length : 0;
+                    return (
+                      <article
+                        key={idx}
+                        className={`tutor-message ${item.sender === "student" ? "is-student" : "is-tutor"}`}
+                      >
+                        <div className="tutor-message-meta">
+                          <span>{item.sender === "tutor" ? "Sky" : "Tú"}</span>
+                          {item.isCorrect !== undefined && (
+                            <span
+                              className={
+                                item.isCorrect
+                                  ? "tutor-answer-result is-correct"
+                                  : "tutor-answer-result"
+                              }
+                            >
+                              {item.isCorrect ? "Comprendido" : "Para repasar"}
+                            </span>
+                          )}
+                        </div>
+                        <p>
+                          {text.slice(0, start)}
+                          {active && (
+                            <strong className="tutor-current-word">
+                              {text.slice(start, end)}
+                            </strong>
+                          )}
+                          {text.slice(end)}
+                        </p>
+                      </article>
+                    );
+                  })}
                   {processingAnswer && (
-                    <div style={styles.loadingBubble}>
-                      <Bot size={18} color="#2563EB" />
-                      <span>El docente está analizando tu respuesta con IA...</span>
+                    <div className="tutor-room-loading" role="status">
+                      <span className="tutor-loading-dots" aria-hidden="true">
+                        •••
+                      </span>
+                      <p>Sky está revisando tu respuesta.</p>
                     </div>
                   )}
-
+                  {interimVoiceText && (
+                    <article className="tutor-message is-student is-interim">
+                      <div className="tutor-message-meta">
+                        Te estoy escuchando
+                      </div>
+                      <p>{interimVoiceText}</p>
+                    </article>
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
-
-                {/* Área de Entrada: Botón Micrófono Intuitivo + Input de Texto */}
-                <div style={styles.inputArea}>
-                  <div style={styles.inputControls}>
-                    {/* Botón de Micrófono (1 Clic) */}
-                    <button
-                      onClick={toggleSpeechRecognition}
-                      disabled={processingAnswer}
-                      style={{
-                        ...styles.micBtn,
-                        backgroundColor: isListening ? '#EF4444' : '#EFF6FF',
-                        color: isListening ? '#FFFFFF' : '#2563EB',
-                        borderColor: isListening ? '#DC2626' : '#BFDBFE',
-                      }}
-                      title={isListening ? 'Detener reconocimiento' : 'Hablar con el Docente Virtual'}
-                    >
-                      {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-                      <span>{isListening ? 'Escuchando...' : 'Hablar'}</span>
-                    </button>
-
-                    {/* Input de Texto Alternativo con Escucha Interactiva */}
-                    <input
-                      type="text"
-                      value={inputText}
-                      onChange={(e) => {
-                        setInputText(e.target.value);
-                        if (!isSpeaking && e.target.value.trim().length > 0) {
-                          setPose('listening');
+                <footer className="tutor-room-composer">
+                  {voiceError && (
+                    <p className="tutor-room-notice" role="alert">
+                      {voiceError}
+                    </p>
+                  )}
+                  {speech.error && (
+                    <p className="tutor-room-notice" role="status">
+                      {speech.error}
+                    </p>
+                  )}
+                  {pendingNextQuestion ? (
+                    <div className="tutor-next-step">
+                      <div>
+                        <strong>Vamos a la siguiente lección</strong>
+                        <p>{pendingNextQuestion.lessonTitle}</p>
+                      </div>
+                      <button
+                        className="btn-primary"
+                        onClick={() =>
+                          handleAdvanceToNextQuestion(pendingNextQuestion)
                         }
-                      }}
-                      onFocus={() => {
-                        if (!isSpeaking) {
-                          setPose('listening');
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!isSpeaking && !inputText.trim() && !isListening) {
-                          setPose('idle');
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSendAnswer();
-                      }}
-                      placeholder={isListening ? 'Escuchando tu voz...' : 'Escribe tu respuesta aquí si no usas voz...'}
-                      disabled={processingAnswer}
-                      style={styles.textInput}
-                    />
-
-                    {/* Botón de Enviar */}
-                    <button
-                      onClick={() => handleSendAnswer()}
-                      disabled={!inputText.trim() || processingAnswer}
-                      className="btn-primary"
-                      style={styles.sendBtn}
-                      title="Enviar respuesta"
-                    >
-                      <Send size={18} />
-                    </button>
-                  </div>
-
-                  <span style={styles.helperTip}>
-                    Tip: Puedes hablar libremente presionando "Hablar" o tipear en la caja de texto. Ambas opciones tienen el mismo valor pedagógico.
-                  </span>
-                </div>
+                      >
+                        <span>Continuar</span>
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        className="tutor-input-mode"
+                        aria-label="Cómo responder"
+                      >
+                        <button
+                          aria-pressed={!voiceConversation}
+                          onClick={() => changeMode(false)}
+                        >
+                          <Keyboard size={17} />
+                          Escribir
+                        </button>
+                        <button
+                          aria-pressed={voiceConversation}
+                          onClick={() => changeMode(true)}
+                        >
+                          <Mic size={17} />
+                          Hablar
+                        </button>
+                        <span>
+                          {voiceConversation
+                            ? "Se envía cuando terminas de hablar"
+                            : "Tómate el tiempo que necesites"}
+                        </span>
+                      </div>
+                      <div className="tutor-answer-field">
+                        <textarea
+                          rows={2}
+                          aria-label="Tu respuesta"
+                          placeholder={
+                            isListening
+                              ? "Te escucho… también puedes escribir aquí."
+                              : "Cuéntame con tus palabras…"
+                          }
+                          value={inputText}
+                          onChange={(event) => setInputText(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" && !event.shiftKey) {
+                              event.preventDefault();
+                              void handleSendAnswer();
+                            }
+                          }}
+                          disabled={loading || processingAnswer}
+                        />
+                        <div className="tutor-answer-actions">
+                          <button
+                            type="button"
+                            className={`tutor-icon-action ${isListening ? "is-recording" : ""}`}
+                            onClick={toggleSpeechRecognition}
+                            disabled={loading || processingAnswer}
+                            title={
+                              isListening
+                                ? "Detener micrófono"
+                                : "Usar micrófono"
+                            }
+                            aria-label={
+                              isListening
+                                ? "Detener micrófono"
+                                : "Usar micrófono"
+                            }
+                          >
+                            {isListening ? (
+                              <MicOff size={20} />
+                            ) : (
+                              <Mic size={20} />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="tutor-send-action"
+                            onClick={() => void handleSendAnswer()}
+                            disabled={
+                              loading || !inputText.trim() || processingAnswer
+                            }
+                            aria-label="Enviar respuesta"
+                            title="Enviar respuesta"
+                          >
+                            <Send size={20} />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="tutor-input-hint">
+                        Enter para enviar · Mayús + Enter para una nueva línea
+                      </p>
+                    </>
+                  )}
+                </footer>
               </>
             )}
-          </div>
+          </section>
         </div>
-      </div>
-    </div>
-  );
-};
 
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    backdropFilter: 'blur(6px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10000,
-    padding: '16px',
-  },
-  modal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: '20px',
-    maxWidth: '1060px',
-    width: '100%',
-    height: '92vh',
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-    overflow: 'hidden',
-  },
-  topBar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '14px 24px',
-    borderBottom: '1px solid #E2E8F0',
-    backgroundColor: '#F8FAFC',
-  },
-  topBarLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    flexWrap: 'wrap',
-  },
-  tutorBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontWeight: 700,
-    color: '#0F172A',
-    fontSize: '15px',
-  },
-  tutorTitle: {
-    fontSize: '15px',
-  },
-  testConnectionBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '12px',
-    fontWeight: 600,
-    color: '#2563EB',
-    backgroundColor: '#EFF6FF',
-    border: '1px solid #BFDBFE',
-    borderRadius: '6px',
-    padding: '5px 10px',
-    cursor: 'pointer',
-  },
-  statusPill: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '11px',
-    fontWeight: 600,
-    color: '#059669',
-    backgroundColor: '#ECFDF5',
-    padding: '4px 8px',
-    borderRadius: '6px',
-    border: '1px solid #A7F3D0',
-  },
-  onlineDot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    backgroundColor: '#10B981',
-  },
-  topBarRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  soundBtn: {
-    background: 'none',
-    border: '1px solid #CBD5E1',
-    borderRadius: '8px',
-    padding: '6px',
-    cursor: 'pointer',
-    color: '#334155',
-  },
-  closeBtn: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#64748B',
-    padding: '6px',
-    borderRadius: '8px',
-  },
-  mainGrid: {
-    display: 'grid',
-    gridTemplateColumns: '400px 1fr',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  avatarColumn: {
-    borderRight: '1px solid #E2E8F0',
-    backgroundColor: '#F8FAFC',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '18px 16px',
-    gap: '14px',
-    overflowY: 'auto',
-  },
-  avatarCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  avatarStateBar: {
-    minHeight: '26px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stateSpeaking: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '12px',
-    fontWeight: 600,
-    color: '#2563EB',
-  },
-  stateListening: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '12px',
-    fontWeight: 600,
-    color: '#DC2626',
-  },
-  stateIdle: {
-    fontSize: '12px',
-    color: '#64748B',
-  },
-  progressCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    border: '1px solid #E2E8F0',
-    borderRadius: '12px',
-    padding: '12px 14px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-  },
-  progressHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '12px',
-    marginBottom: '6px',
-  },
-  progressLabel: {
-    fontWeight: 600,
-    color: '#334155',
-  },
-  progressCounter: {
-    fontWeight: 700,
-    color: '#2563EB',
-  },
-  progressBarBg: {
-    width: '100%',
-    height: '8px',
-    borderRadius: '999px',
-    backgroundColor: '#E2E8F0',
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#2563EB',
-    borderRadius: '999px',
-    transition: 'width 0.4s ease',
-  },
-  moduleNameText: {
-    fontSize: '11px',
-    color: '#64748B',
-    marginTop: '6px',
-    display: 'block',
-  },
-  dialogueColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-  },
-  messagesBox: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '20px 24px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '14px',
-  },
-  bubble: {
-    maxWidth: '82%',
-    padding: '12px 16px',
-    borderRadius: '14px',
-    lineHeight: '1.45',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-  },
-  tutorBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
-    border: '1px solid #DBEAFE',
-    borderBottomLeftRadius: '3px',
-  },
-  studentBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#F8FAFC',
-    border: '1px solid #E2E8F0',
-    borderBottomRightRadius: '3px',
-  },
-  bubbleHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '8px',
-    marginBottom: '4px',
-  },
-  senderName: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#475569',
-    textTransform: 'uppercase',
-  },
-  correctTag: {
-    fontSize: '11px',
-    fontWeight: 700,
-    padding: '2px 6px',
-    borderRadius: '4px',
-  },
-  bubbleText: {
-    margin: 0,
-    fontSize: '14px',
-    color: '#0F172A',
-    whiteSpace: 'pre-wrap',
-  },
-  loadingBubble: {
-    alignSelf: 'flex-start',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '13px',
-    color: '#64748B',
-    fontStyle: 'italic',
-    padding: '8px 12px',
-  },
-  inputArea: {
-    borderTop: '1px solid #E2E8F0',
-    padding: '16px 20px',
-    backgroundColor: '#F8FAFC',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  inputControls: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  micBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '10px 14px',
-    borderRadius: '10px',
-    border: '1px solid',
-    cursor: 'pointer',
-    fontWeight: 700,
-    fontSize: '14px',
-    flexShrink: 0,
-    transition: 'all 0.2s ease',
-  },
-  textInput: {
-    flex: 1,
-    padding: '10px 16px',
-    borderRadius: '10px',
-    border: '1px solid #CBD5E1',
-    fontSize: '14px',
-    outline: 'none',
-    backgroundColor: '#FFFFFF',
-  },
-  sendBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '10px 16px',
-    borderRadius: '10px',
-    flexShrink: 0,
-  },
-  helperTip: {
-    fontSize: '11px',
-    color: '#64748B',
-    paddingLeft: '4px',
-  },
-  finalSummaryCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    padding: '32px 40px',
-    textAlign: 'center',
-  },
-  summaryBadge: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '16px',
-  },
-  summaryTitle: {
-    fontSize: '22px',
-    fontWeight: 800,
-    color: '#0F172A',
-    margin: 0,
-  },
-  summaryScore: {
-    fontSize: '16px',
-    color: '#334155',
-  },
-  summaryRemarks: {
-    fontSize: '15px',
-    color: '#475569',
-    maxWidth: '520px',
-    lineHeight: '1.5',
-    marginBottom: '24px',
-  },
-  summaryActions: {
-    display: 'flex',
-    gap: '12px',
-  },
+        {settingsOpen && (
+          <div className="tutor-settings-layer">
+            <button
+              className="tutor-settings-scrim"
+              aria-label="Cerrar ajustes"
+              onClick={() => setSettingsOpen(false)}
+            />
+            <aside
+              ref={settingsPanelRef}
+              className="tutor-room-settings"
+              id="tutor-room-settings"
+              aria-label="Ajustes del docente"
+            >
+              <header>
+                <div>
+                  <h3>A tu manera</h3>
+                  <p>Personaliza la voz de Sky.</p>
+                </div>
+                <button
+                  className="tutor-icon-action"
+                  aria-label="Cerrar ajustes"
+                  onClick={() => setSettingsOpen(false)}
+                >
+                  <X size={20} />
+                </button>
+              </header>
+              <TutorSpeechControls
+                speech={speech}
+                showCaption={false}
+                showActions={false}
+              />
+              {isSimulation && (
+                <section className="tutor-gesture-settings">
+                  <h4>Movimientos del docente</h4>
+                  <p>{GESTURE_LABELS[activeGesture]}</p>
+                  <label>
+                    Probar gestos
+                    <select
+                      className="skylearn-input"
+                      value={gestureSelection}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (
+                          value === "auto" ||
+                          value === "demo" ||
+                          value in GESTURE_LABELS
+                        )
+                          setGestureSelection(value as GestureSelection);
+                      }}
+                    >
+                      <option value="auto">
+                        Automáticos durante la conversación
+                      </option>
+                      <option value="demo">
+                        Demostración de todos los gestos
+                      </option>
+                      {Object.entries(GESTURE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </section>
+              )}
+              <section className="tutor-connection-settings">
+                <h4>Conexión del docente</h4>
+                <button
+                  className="btn-secondary"
+                  onClick={handleTestConnection}
+                  disabled={testingConnection}
+                >
+                  <Activity size={16} />
+                  {testingConnection ? "Comprobando…" : "Comprobar conexión"}
+                </button>
+                {apiConnectionStatus && (
+                  <p role="status">{apiConnectionStatus}</p>
+                )}
+              </section>
+            </aside>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
 };

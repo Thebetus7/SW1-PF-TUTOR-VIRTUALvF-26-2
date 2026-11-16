@@ -64,6 +64,7 @@ export interface TestConnectionResponse {
 }
 
 export interface StartModuleEvaluationResponse {
+  sessionId: string;
   moduleId: string;
   moduleTitle: string;
   totalLessons: number;

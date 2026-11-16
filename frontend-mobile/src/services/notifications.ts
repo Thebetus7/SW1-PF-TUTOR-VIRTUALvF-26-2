@@ -14,7 +14,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export const BACKEND_URL = 'http://localhost:3000/api/v1';
+export const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
 export async function registerForPushNotificationsAsync(teacherToken?: string): Promise<string | null> {
   let token: string | null = null;
@@ -49,12 +49,13 @@ export async function registerForPushNotificationsAsync(teacherToken?: string): 
     if (teacherToken && token) {
       await axios.post(
         `${BACKEND_URL}/teacher/device-token`,
-        { token },
+        { pushToken: token },
         { headers: { Authorization: `Bearer ${teacherToken}` } },
       );
     }
   } catch (error) {
     console.error('Error al obtener o registrar Expo Push Token:', error);
+    return null;
   }
 
   return token;

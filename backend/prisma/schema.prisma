@@ -40,6 +40,8 @@ model User {
   createdAt               DateTime                @default(now())
   updatedAt               DateTime                @updatedAt
 
+  tutorChatTurns          TutorChatTurn[]
+  tutorSessions           TutorSession[]
   creditAccount           CreditAccount?
   subscription            Subscription?
   coursesCreated          Course[]                @relation("TeacherCourses")
@@ -107,6 +109,7 @@ model Module {
   course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons   Lesson[]
   exams     Exam[]
+  tutorSessions TutorSession[]
 
   @@index([courseId, order])
 }
@@ -123,6 +126,7 @@ model Lesson {
   updatedAt       DateTime         @updatedAt
 
   module          Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  tutorChatTurns  TutorChatTurn[]
   lessonUnlocks   LessonUnlock[]
   progresses      LessonProgress[]
   exams           Exam[]
@@ -271,4 +275,32 @@ model Enrollment {
 model ProcessedWebhookEvent {
   id          String   @id // Stripe event id
   processedAt DateTime @default(now())
+}
+
+// Sessions survive process restarts; related user/module removal removes sessions.
+model TutorSession {
+  id String @id @default(uuid())
+  userId String
+  moduleId String
+  nextIndex Int @default(0)
+  question String
+  results Boolean[] @default([])
+  transcript Json @default("[]")
+  completed Boolean @default(false)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  @@index([userId, moduleId])
+}
+
+model TutorChatTurn {
+  id String @id @default(uuid())
+  userId String
+  lessonId String
+  message String @db.Text
+  reply String @db.Text
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  @@index([userId, lessonId, createdAt])
 }

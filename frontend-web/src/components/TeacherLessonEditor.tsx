@@ -1,6 +1,6 @@
 // frontend-web/src/components/TeacherLessonEditor.tsx
 import React, { useState } from 'react';
-import { Video, Plus, Trash2, Save, X } from 'lucide-react';
+import { Video, Plus, Trash2, Save, X, FileQuestion } from 'lucide-react';
 import { api } from '../services/api';
 
 interface OptionItem {
@@ -31,9 +31,9 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
   const [title, setTitle] = useState(initialLesson?.title || '');
   const [videoUrl, setVideoUrl] = useState(initialLesson?.videoUrl || '');
   const [contextText, setContextText] = useState(initialLesson?.contextText || '');
-  const [downloadableUrl, setDownloadableUrl] = useState(initialLesson?.downloadableUrl || '');
+  const [downloadableUrl] = useState(initialLesson?.downloadableUrl || '');
 
-  // Carga previa de preguntas si la lección ya contaba con formulario de examen
+  // Carga previa de preguntas
   const existingQuestions: QuestionItem[] =
     initialLesson?.exams?.[0]?.questions && initialLesson.exams[0].questions.length > 0
       ? initialLesson.exams[0].questions.map((q: any) => ({
@@ -102,20 +102,20 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
 
     try {
       const payload: any = {
-        title,
-        videoUrl,
-        contextText,
+        title: title.trim(),
+        videoUrl: videoUrl.trim(),
+        contextText: contextText.trim(),
         downloadableUrl: downloadableUrl.trim() || undefined,
         order: initialLesson?.order || 1,
       };
 
       if (hasExam) {
         payload.examForm = {
-          title: `Evaluación: ${title}`,
+          title: `Evaluación: ${title.trim()}`,
           questions: questions.map((q) => ({
-            text: q.text,
+            text: q.text.trim(),
             options: q.options.map((opt) => ({
-              text: opt.text,
+              text: opt.text.trim(),
               isCorrect: opt.isCorrect,
             })),
           })),
@@ -138,20 +138,22 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
   };
 
   return (
-    <div style={styles.modalOverlay}>
-      <div className="skylearn-card" style={styles.modalCard}>
+    <div style={styles.modalOverlay} onClick={onCancel}>
+      <div className="skylearn-card" style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
         <div style={styles.header}>
           <div>
             <h3 style={styles.title}>
-              {isEditing ? 'Editar Lección Didáctica' : 'Nueva Lección con Formulario Evaluativo'}
+              {isEditing ? 'Editar Lección Didáctica' : 'Nueva Lección con Cuestionario'}
             </h3>
             <span style={styles.subtitle}>
               {isEditing
-                ? 'Modifica el video, contexto pedagógico o las preguntas de evaluación de la lección'
-                : 'Configura el video, contexto pedagógico y preguntas evaluativas'}
+                ? 'Modifica el video, contexto pedagógico y preguntas'
+                : 'Configura el video instructivo y las preguntas formativas'}
             </span>
           </div>
-          <button onClick={onCancel} style={styles.closeBtn}><X size={20} /></button>
+          <button onClick={onCancel} style={styles.closeBtn} aria-label="Cerrar">
+            <X size={18} />
+          </button>
         </div>
 
         {errorMsg && <div style={styles.errorBox}>{errorMsg}</div>}
@@ -159,7 +161,7 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
         <form onSubmit={handleSubmit} style={styles.form}>
           {/* Título de la lección */}
           <div style={styles.fieldGroup}>
-            <label style={styles.label}>Título de la Lección</label>
+            <label style={styles.label}>Título de la Lección *</label>
             <input
               type="text"
               required
@@ -170,15 +172,15 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
             />
           </div>
 
-          {/* Video URL YouTube */}
+          {/* Enlace de YouTube */}
           <div style={styles.fieldGroup}>
-            <label style={styles.label}>Enlace de YouTube (URL Canónica)</label>
+            <label style={styles.label}>Enlace de YouTube (URL de la clase) *</label>
             <div style={styles.inputRow}>
-              <Video size={20} color="#EF4444" />
+              <Video size={16} color="#DC2626" />
               <input
                 type="url"
                 required
-                placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                placeholder="https://www.youtube.com/watch?v=..."
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 style={styles.inputBare}
@@ -189,31 +191,19 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
           {/* Variable de Contexto del Video */}
           <div style={styles.fieldGroup}>
             <label style={styles.label}>
-              Variable de Contexto Pedagógico del Video (Alimenta al Tutor 3D y Evaluaciones)
+              Contexto Didáctico del Video (Alimenta al Docente Virtual y Preguntas) *
             </label>
             <textarea
               required
               rows={3}
-              placeholder="Describe detalladamente los conceptos, ejemplos y definiciones abordados en este video para que la IA y las evaluaciones tengan contexto didáctico..."
+              placeholder="Describe los conceptos clave y definiciones abordadas en este video..."
               value={contextText}
               onChange={(e) => setContextText(e.target.value)}
               style={styles.textarea}
             />
           </div>
 
-          {/* Enlace de Material Opcional */}
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Material Descargable (Opcional - Placeholder Automático)</label>
-            <input
-              type="url"
-              placeholder="https://ejemplo.com/diapositivas.pdf (deja en blanco para recurso por defecto)"
-              value={downloadableUrl}
-              onChange={(e) => setDownloadableUrl(e.target.value)}
-              style={styles.input}
-            />
-          </div>
-
-          {/* Switch de Formulario Evaluativo */}
+          {/* Switch de Cuestionario Formativo */}
           <div style={styles.examToggleCard}>
             <div style={styles.examToggleHeader}>
               <input
@@ -221,24 +211,32 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
                 id="hasExamCheckbox"
                 checked={hasExam}
                 onChange={(e) => setHasExam(e.target.checked)}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
               />
-              <label htmlFor="hasExamCheckbox" style={{ fontWeight: 800, fontSize: '15px', cursor: 'pointer' }}>
-                Habilitar Formulario Evaluativo de la Lección (Opciones Múltiples)
+              <label htmlFor="hasExamCheckbox" style={{ fontWeight: 700, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <FileQuestion size={15} color="var(--color-sky-deep)" />
+                <span>Habilitar Cuestionario Formativo (Opciones Múltiples)</span>
               </label>
             </div>
             <span style={styles.examToggleDesc}>
-              El estudiante responderá haciendo clic en las opciones predefinidas y el tutor 3D utilizará estas preguntas como banco evaluativo.
+              El estudiante responderá haciendo clic en las opciones y el docente virtual usará estas preguntas para evaluar.
             </span>
           </div>
 
-          {/* Constructor Dinámico de Preguntas y Respuestas */}
+          {/* Constructor Dinámico de Preguntas */}
           {hasExam && (
             <div style={styles.questionsBuilder}>
               <div style={styles.builderHeader}>
-                <h4 style={{ fontSize: '16px', fontWeight: 800 }}>Preguntas Configuradas ({questions.length})</h4>
-                <button type="button" onClick={handleAddQuestion} className="btn-secondary" style={{ padding: '6px 14px', fontSize: '13px' }}>
-                  <Plus size={16} />
+                <h4 style={{ fontSize: '14px', fontWeight: 800, margin: 0 }}>
+                  Preguntas Configuradas ({questions.length})
+                </h4>
+                <button
+                  type="button"
+                  onClick={handleAddQuestion}
+                  className="btn-secondary"
+                  style={{ padding: '4px 10px', fontSize: '12px' }}
+                >
+                  <Plus size={14} />
                   <span>Añadir Pregunta</span>
                 </button>
               </div>
@@ -248,8 +246,13 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
                   <div style={styles.questionTop}>
                     <span style={styles.qNumber}>Pregunta #{qIndex + 1}</span>
                     {questions.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveQuestion(qIndex)} style={styles.iconBtn}>
-                        <Trash2 size={16} color="var(--color-coral)" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveQuestion(qIndex)}
+                        style={styles.iconBtn}
+                        title="Eliminar pregunta"
+                      >
+                        <Trash2 size={14} color="var(--color-coral)" />
                       </button>
                     )}
                   </div>
@@ -257,7 +260,7 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Enunciado de la pregunta (Ej. ¿Qué es JSX?)"
+                    placeholder="Enunciado de la pregunta (Ej. ¿Qué es un estado en React?)"
                     value={q.text}
                     onChange={(e) => {
                       const updated = [...questions];
@@ -269,8 +272,8 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
 
                   {/* Opciones */}
                   <div style={styles.optionsList}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-ink-muted)' }}>
-                      Opciones (marca la opción correcta):
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-ink-muted)' }}>
+                      Marca el círculo de la opción correcta:
                     </span>
                     {q.options.map((opt, optIndex) => (
                       <div key={optIndex} style={styles.optionRow}>
@@ -293,6 +296,7 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
                           }}
                           style={{
                             ...styles.input,
+                            flex: 1,
                             backgroundColor: opt.isCorrect ? 'var(--color-leaf-soft)' : 'var(--color-surface)',
                             borderColor: opt.isCorrect ? 'var(--color-leaf)' : 'var(--color-outline)',
                           }}
@@ -318,14 +322,8 @@ export const TeacherLessonEditor: React.FC<TeacherLessonEditorProps> = ({
               Cancelar
             </button>
             <button type="submit" disabled={loading} className="btn-big-friendly">
-              <Save size={18} />
-              <span>
-                {loading
-                  ? 'Guardando...'
-                  : isEditing
-                  ? 'Guardar Cambios de Lección'
-                  : 'Guardar Lección'}
-              </span>
+              <Save size={16} />
+              <span>{loading ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Guardar Lección'}</span>
             </button>
           </div>
         </form>
@@ -342,80 +340,86 @@ const styles: Record<string, React.CSSProperties> = {
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backdropFilter: 'blur(3px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
-    padding: '20px',
+    padding: '16px',
   },
   modalCard: {
     width: '100%',
-    maxWidth: '720px',
+    maxWidth: '620px',
     maxHeight: '90vh',
     overflowY: 'auto',
-    backgroundColor: '#FFFFFF',
-    padding: '32px',
+    backgroundColor: 'var(--color-surface-elevated)',
+    padding: '24px',
+    borderRadius: 'var(--radius-lg)',
+    boxShadow: 'var(--shadow-modal)',
+    border: '1px solid var(--color-outline)',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: '20px',
+    marginBottom: '16px',
   },
   title: {
-    fontSize: '22px',
+    fontSize: '18px',
     color: 'var(--color-ink)',
+    margin: 0,
   },
   subtitle: {
-    fontSize: '14px',
+    fontSize: '12px',
     color: 'var(--color-ink-muted)',
   },
   closeBtn: {
     background: 'transparent',
     color: 'var(--color-ink-muted)',
-    padding: '6px',
+    padding: '4px',
     borderRadius: '50%',
+    cursor: 'pointer',
   },
   errorBox: {
-    padding: '12px',
+    padding: '10px',
     backgroundColor: 'var(--color-coral-soft)',
-    color: 'var(--color-coral-deep)',
-    borderRadius: 'var(--radius-md)',
-    marginBottom: '16px',
-    fontSize: '14px',
+    color: 'var(--color-coral)',
+    borderRadius: 'var(--radius-sm)',
+    marginBottom: '14px',
+    fontSize: '13px',
     fontWeight: 700,
   },
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '14px',
   },
   fieldGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
+    gap: '4px',
   },
   label: {
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: 700,
     color: 'var(--color-ink)',
   },
   input: {
-    padding: '10px 14px',
+    padding: '8px 12px',
     borderRadius: 'var(--radius-sm)',
-    border: '1.5px solid var(--color-outline)',
+    border: '1px solid var(--color-outline)',
     backgroundColor: 'var(--color-surface)',
-    fontSize: '15px',
+    fontSize: '14px',
     color: 'var(--color-ink)',
     outline: 'none',
   },
   inputRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '10px 14px',
+    gap: '8px',
+    padding: '8px 12px',
     borderRadius: 'var(--radius-sm)',
-    border: '1.5px solid var(--color-outline)',
+    border: '1px solid var(--color-outline)',
     backgroundColor: 'var(--color-surface)',
   },
   inputBare: {
@@ -423,24 +427,24 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     backgroundColor: 'transparent',
     outline: 'none',
-    fontSize: '15px',
+    fontSize: '14px',
     color: 'var(--color-ink)',
   },
   textarea: {
-    padding: '10px 14px',
+    padding: '8px 12px',
     borderRadius: 'var(--radius-sm)',
-    border: '1.5px solid var(--color-outline)',
+    border: '1px solid var(--color-outline)',
     backgroundColor: 'var(--color-surface)',
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--color-ink)',
     outline: 'none',
     fontFamily: 'var(--font-body)',
   },
   examToggleCard: {
-    padding: '16px',
-    borderRadius: 'var(--radius-md)',
+    padding: '12px 14px',
+    borderRadius: 'var(--radius-sm)',
     backgroundColor: 'var(--color-sky-soft)',
-    border: '1px solid var(--color-sky-bright)',
+    border: '1px solid var(--color-sky)',
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
@@ -448,18 +452,18 @@ const styles: Record<string, React.CSSProperties> = {
   examToggleHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '8px',
   },
   examToggleDesc: {
-    fontSize: '13px',
+    fontSize: '11px',
     color: 'var(--color-ink-muted)',
-    marginLeft: '28px',
+    marginLeft: '24px',
   },
   questionsBuilder: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
-    marginTop: '8px',
+    gap: '12px',
+    marginTop: '6px',
   },
   builderHeader: {
     display: 'flex',
@@ -467,13 +471,13 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
   },
   questionCard: {
-    padding: '16px',
-    borderRadius: 'var(--radius-md)',
+    padding: '14px',
+    borderRadius: 'var(--radius-sm)',
     backgroundColor: 'var(--color-surface)',
     border: '1px solid var(--color-outline)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '10px',
   },
   questionTop: {
     display: 'flex',
@@ -482,37 +486,39 @@ const styles: Record<string, React.CSSProperties> = {
   },
   qNumber: {
     fontWeight: 800,
-    fontSize: '13px',
+    fontSize: '12px',
     color: 'var(--color-sky-deep)',
   },
   iconBtn: {
     background: 'transparent',
     cursor: 'pointer',
+    padding: '2px',
   },
   optionsList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '6px',
   },
   optionRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '8px',
   },
   addOptBtn: {
     alignSelf: 'flex-start',
     background: 'transparent',
     color: 'var(--color-sky-deep)',
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: 700,
-    padding: '4px 0',
+    padding: '2px 0',
+    cursor: 'pointer',
   },
   actionsRow: {
     display: 'flex',
     justifyContent: 'flex-end',
-    gap: '12px',
-    marginTop: '16px',
-    paddingTop: '16px',
+    gap: '10px',
+    marginTop: '12px',
+    paddingTop: '12px',
     borderTop: '1px solid var(--color-outline)',
   },
 };

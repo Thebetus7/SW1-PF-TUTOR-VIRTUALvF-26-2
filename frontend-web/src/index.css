@@ -17,7 +17,7 @@
   --color-coral-soft: #FEE2E2;
   --color-berry: #A855F7;
 
-  /* Surfaces & Neutrals */
+  /* Surfaces & Neutrals (Light Mode) */
   --color-bg: #FFFFFF;
   --color-surface: #F8FAFC;
   --color-surface-elevated: #FFFFFF;
@@ -30,26 +30,52 @@
   --color-ink-faint: #CBD5E1;
   --color-outline: #E2E8F0;
   --color-outline-strong: #94A3B8;
+  --course-accent: #1D4ED8;
 
   /* Typography Families */
-  --font-display: 'Nunito', sans-serif;
-  --font-body: 'Atkinson Hyperlegible', sans-serif;
+  --font-display: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Radii */
-  --radius-xs: 8px;
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-card: 0 4px 16px rgba(15, 23, 42, 0.05);
-  --shadow-hover: 0 12px 28px rgba(15, 23, 42, 0.08);
-  --shadow-modal: 0 24px 48px rgba(15, 23, 42, 0.12);
-  --shadow-sky: 0 8px 24px rgba(59, 130, 246, 0.2);
-  --shadow-sun: 0 0 24px rgba(252, 211, 77, 0.4);
+  --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.04);
+  --shadow-hover: 0 8px 20px rgba(15, 23, 42, 0.08);
+  --shadow-modal: 0 20px 40px rgba(15, 23, 42, 0.16);
+  --shadow-sky: 0 4px 14px rgba(59, 130, 246, 0.25);
+  --shadow-sun: 0 0 20px rgba(252, 211, 77, 0.35);
+}
+
+/* Modo Oscuro (Dark Theme) */
+[data-theme='dark'],
+.dark {
+  --color-bg: #0F172A;
+  --color-surface: #1E293B;
+  --color-surface-elevated: #1E293B;
+  --color-surface-sunken: #0B1120;
+
+  --color-ink: #F8FAFC;
+  --color-ink-muted: #94A3B8;
+  --color-ink-subtle: #64748B;
+  --color-ink-faint: #334155;
+  --color-outline: #334155;
+  --color-outline-strong: #475569;
+  --course-accent: #93C5FD;
+
+  --color-sky-soft: rgba(59, 130, 246, 0.18);
+  --color-leaf-soft: rgba(34, 197, 94, 0.18);
+  --color-coral-soft: rgba(248, 113, 113, 0.18);
+
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 10px 24px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.6);
 }
 
 * {
@@ -62,9 +88,10 @@ body {
   font-family: var(--font-body);
   background-color: var(--color-surface);
   color: var(--color-ink);
-  line-height: 1.6;
+  line-height: 1.5;
   letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -85,38 +112,39 @@ input, textarea, select {
   font-family: var(--font-body);
 }
 
-/* Skylearn Component Utilities */
+/* Skylearn Component Utilities Ergonómicos y Adaptables */
 .skylearn-card {
   background: var(--color-surface-elevated);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-outline);
   box-shadow: var(--shadow-card);
-  transition: transform 0.24s ease, box-shadow 0.24s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .skylearn-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-hover);
 }
 
+/* Botón Principal: Ergonómico, no gigantesco */
 .btn-big-friendly {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 28px;
-  font-size: 18px;
+  padding: 10px 20px;
+  font-size: 15px;
   font-weight: 700;
   border-radius: var(--radius-full);
   background-color: var(--color-sky);
-  color: white;
+  color: #FFFFFF;
   box-shadow: var(--shadow-sky);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-big-friendly:hover {
   background-color: var(--color-sky-bright);
-  transform: scale(1.02);
+  transform: translateY(-1px);
 }
 
 .btn-big-friendly:active {
@@ -124,15 +152,26 @@ input, textarea, select {
   transform: scale(0.98);
 }
 
+.btn-big-friendly:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Botón Secundario */
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background-color: var(--color-surface);
   color: var(--color-ink);
   border: 1px solid var(--color-outline);
-  padding: 12px 24px;
+  padding: 8px 16px;
   border-radius: var(--radius-full);
-  font-weight: 700;
-  font-size: 16px;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.18s ease;
 }
 
 .btn-secondary:hover {
@@ -141,19 +180,48 @@ input, textarea, select {
   border-color: var(--color-sky-bright);
 }
 
-/* Inputs Skylearn: borde suave, foco con anillo sky y altura táctil */
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Botón Primario Estándar */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: var(--color-sky);
+  color: #FFFFFF;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.18s ease;
+  box-shadow: var(--shadow-sky);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-sky-bright);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Inputs Skylearn: Borde suave, foco con anillo sky y tamaño ergonómico */
 .skylearn-input {
   width: 100%;
-  min-height: 56px;
-  padding: 16px 20px;
+  min-height: 42px;
+  padding: 10px 14px;
   font-family: var(--font-body);
-  font-size: 18px;
+  font-size: 15px;
   color: var(--color-ink);
   background-color: var(--color-surface);
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-sm);
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .skylearn-input::placeholder {
@@ -162,24 +230,84 @@ input, textarea, select {
 
 .skylearn-input:focus {
   border-color: var(--color-sky);
-  box-shadow: 0 0 0 4px var(--color-sky-soft);
+  box-shadow: 0 0 0 3px var(--color-sky-soft);
 }
 
 .skylearn-input:disabled {
   color: var(--color-ink-faint);
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
+/* Badge de Estrellas / Puntos */
 .star-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 4px 12px;
   background-color: #FEF3C7;
   color: var(--color-sun-deep);
   border-radius: var(--radius-full);
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 13px;
   border: 1px solid var(--color-sun);
+}
+
+/* Scrollbars accesibles y limpios */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-strong);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-muted);
+}
+
+/* Ajustes Responsive para Pantallas Pequeñas (< 768px) */
+@media (max-width: 768px) {
+  .btn-big-friendly {
+    padding: 9px 16px;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  .btn-secondary {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  h1 {
+    font-size: 24px !important;
+  }
+
+  h2 {
+    font-size: 20px !important;
+  }
+
+  h3 {
+    font-size: 17px !important;
+  }
+}
+
+.tutor-speech-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px; color: var(--color-ink); background: var(--color-surface); border-bottom: 1px solid var(--color-outline); }
+.tutor-speech-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; min-width: 0; }
+.tutor-speech-controls select { max-width: 240px; padding: 8px; border-radius: 8px; border: 1px solid var(--color-outline); background: var(--color-surface-elevated); color: var(--color-ink); }
+.tutor-live-caption { width: 100%; line-height: 1.7; font-size: 16px; white-space: pre-wrap; }
+.tutor-current-word { background: var(--color-sky-soft); color: var(--color-ink); border-radius: 4px; text-decoration: underline; text-underline-offset: 4px; }
+.tutor-speech-controls :focus-visible { outline: 2px solid var(--color-sky-bright); outline-offset: 3px; }
+
+.tutor-live-caption { max-height: 160px; overflow-y: auto; }
+@media (max-width: 760px) {
+  .tutor-evaluation-grid { grid-template-columns: 1fr !important; overflow-y: auto !important; }
+  .tutor-evaluation-grid > div { overflow: visible !important; }
 }

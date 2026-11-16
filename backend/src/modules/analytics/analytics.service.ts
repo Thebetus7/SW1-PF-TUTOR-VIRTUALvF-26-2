@@ -113,27 +113,29 @@ export class AnalyticsService {
         });
       });
 
-      const coursePassRate = courseAttempts > 0 ? (coursePassed / courseAttempts) * 100 : 85.0; // Valor optimista si no hay intentos
+      const coursePassRate = courseAttempts > 0 ? (coursePassed / courseAttempts) * 100 : null;
 
       // Semáforo Skylearn: leaf >= 80%, sun 60-79%, coral < 60%
-      let trafficLight: TrafficLightStatus = 'leaf';
-      if (coursePassRate < 60) {
+      let trafficLight: TrafficLightStatus | null = null;
+      if (coursePassRate !== null && coursePassRate < 60) {
         trafficLight = 'coral';
-      } else if (coursePassRate < 80) {
+      } else if (coursePassRate !== null && coursePassRate < 80) {
         trafficLight = 'sun';
+      } else if (coursePassRate !== null) {
+        trafficLight = 'leaf';
       }
 
       return {
         id: course.id,
         title: course.title,
         studentsCount: course.enrollments.length,
-        passRate: Math.round(coursePassRate),
+        passRate: coursePassRate === null ? null : Math.round(coursePassRate),
         trafficLight,
       };
     });
 
     const averagePassRate =
-      allAttemptsCount > 0 ? Math.round((passedAttemptsCount / allAttemptsCount) * 100) : 88;
+      allAttemptsCount > 0 ? Math.round((passedAttemptsCount / allAttemptsCount) * 100) : null;
 
     return {
       kpis: {
@@ -142,14 +144,7 @@ export class AnalyticsService {
         totalCompletions,
       },
       courses: courseCards,
-      criticalLesson: criticalLessonCandidate || {
-        lessonId: courses[0]?.modules[0]?.lessons[0]?.id || 'demo-lesson',
-        lessonTitle: courses[0]?.modules[0]?.lessons[0]?.title || 'Introducción a Componentes React',
-        courseTitle: courses[0]?.title || 'Desarrollo Web Fullstack',
-        passRate: 65,
-        totalAttempts: 12,
-        suggestion: 'Revisar explicación de sintaxis JSX y paso de props.',
-      },
+      criticalLesson: criticalLessonCandidate,
     };
   }
 
@@ -166,6 +161,11 @@ export class AnalyticsService {
     return { success: true, message: 'Dispositivo registrado para alertas push del dashboard.' };
   }
 
+  async unregisterDeviceToken(userId: string, pushToken: string) {
+    await this.prisma.user.updateMany({ where: { id: userId, pushToken }, data: { pushToken: null } });
+    return { success: true };
+  }
+
   /**
    * RF-08.3: Despacho de notificación push ante eventos relevantes (ej. nueva inscripción)
    */
@@ -179,14 +179,15 @@ export class AnalyticsService {
       return { sent: false, reason: 'NO_TOKEN' };
     }
 
-    this.logger.log(`[PUSH NOTIFICATION] Para ${teacher.email} (${teacher.pushToken}): ${title} - ${body}`);
-
-    return {
-      sent: true,
-      recipient: teacher.pushToken,
-      title,
-      body,
-      data,
-    };
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ to: teacher.pushToken, title, body, data, sound: 'default', channelId: 'default' }),
+    });
+    const result = await response.json() as { data?: { status?: string; message?: string } };
+    if (!response.ok || result.data?.status !== 'ok') {
+      throw new Error(result.data?.message || `Expo push HTTP ${response.status}`);
+    }
+    return { sent: true };
   }
 }

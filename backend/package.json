@@ -15,6 +15,7 @@
     "start:prod": "node dist/main",
     "db:setup": "prisma db push && prisma db seed",
     "db:seed": "prisma db seed",
+    "db:seed:courses": "tsx prisma/seed-courses.ts",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "test": "jest",
@@ -23,6 +24,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@google/genai": "^3.3.0",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
@@ -35,6 +37,7 @@
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "microsoft-cognitiveservices-speech-sdk": "^1.53.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
