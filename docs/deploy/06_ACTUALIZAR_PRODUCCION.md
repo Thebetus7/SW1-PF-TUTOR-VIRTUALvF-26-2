@@ -19,11 +19,17 @@ git pull origin main
 ```
 
 ### Paso 2: Recompilar y Reemplazar Contenedores
-Ejecuta el comando de Docker Compose:
+Ejecuta el comando con `sudo`:
 
 ```bash
-docker compose -f docker-compose.prod.yml up --build -d
+sudo docker compose -f docker-compose.prod.yml up --build -d
 ```
+
+> [!TIP]
+> Si prefieres ejecutar comandos de Docker sin escribir `sudo` cada vez, agrega tu usuario al grupo docker una sola vez ejecutando:
+> ```bash
+> sudo usermod -aG docker $USER && newgrp docker
+> ```
 
 ### 🧠 ¿Qué sucede internamente?
 - Docker detecta si hubo cambios en el código de `backend` o `frontend-web`.
@@ -38,12 +44,12 @@ docker compose -f docker-compose.prod.yml up --build -d
 Comprueba los logs del backend para asegurar un inicio limpio:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs --tail=50 backend
+sudo docker compose -f docker-compose.prod.yml logs --tail=50 backend
 ```
 
 Y limpia imágenes antiguas huérfanas para ahorrar espacio en disco:
 
 ```bash
-docker image prune -f
+sudo docker image prune -f
 ```
 
