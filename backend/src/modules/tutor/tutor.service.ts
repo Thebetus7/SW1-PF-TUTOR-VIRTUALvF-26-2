@@ -311,10 +311,12 @@ Responde ÚNICAMENTE en formato JSON:
 
       const aiResponse = await this.geminiService.generateJson<typeof fallbackEvaluation>(
         prompt,
-        () => fallbackEvaluation,
+        () => {
+          throw new ServiceUnavailableException('No pudimos evaluar tu respuesta. Reintenta sin perder tu turno.');
+        },
       );
       rawAiResponse = aiResponse;
-      if (typeof aiResponse.isCorrect === 'boolean' && typeof aiResponse.feedbackText === 'string' && aiResponse.feedbackText.trim()) {
+      if (typeof aiResponse?.isCorrect === 'boolean' && typeof aiResponse?.feedbackText === 'string' && aiResponse.feedbackText.trim()) {
         evaluationAvailable = true;
         evaluation = {
           isCorrect: Boolean(aiResponse.isCorrect),
@@ -325,11 +327,11 @@ Responde ÚNICAMENTE en formato JSON:
           speechSegments: aiResponse.speechSegments || [],
         };
       }
-    } catch {
-      this.logger.warn('Fallo o timeout de Gemini al evaluar respuesta, usando fallback.');
-      evaluation = fallbackEvaluation;
-      rawAiResponse = fallbackEvaluation;
-      evaluationAvailable = true;
+    } catch (err: unknown) {
+      this.logger.warn(`Error al evaluar con Gemini: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+      if (err instanceof ServiceUnavailableException) {
+        throw err;
+      }
     }
 
     if (!evaluationAvailable) throw new ServiceUnavailableException('No pudimos evaluar tu respuesta. Reintenta sin perder tu turno.');
