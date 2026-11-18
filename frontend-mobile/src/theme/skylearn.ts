@@ -10,6 +10,7 @@ export const SkylearnColors = {
   sun: '#FBBF24',
   sunBright: '#FCD34D',
   sunDeep: '#D97706',
+  sunSoft: '#FEF3C7',
   leaf: '#22C55E',
   leafSoft: '#DCFCE7',
   leafDeep: '#16A34A',
@@ -17,6 +18,7 @@ export const SkylearnColors = {
   coralSoft: '#FEE2E2',
   coralDeep: '#DC2626',
   berry: '#A855F7',
+  berrySoft: '#F3E8FF',
 
   // Surfaces & Neutrals
   background: '#FFFFFF',
