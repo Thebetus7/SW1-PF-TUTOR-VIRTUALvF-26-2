@@ -174,7 +174,7 @@ export const RecommendationQuiz: React.FC<RecommendationQuizProps> = ({
             </div>
             <h3 style={styles.resultTitle}>¡Tu Ruta Adaptativa está Lista!</h3>
             <p style={styles.resultDesc}>
-              Analizamos tus preferencias pedagógicas con Gemini API y hemos compilado tu secuencia de lecciones óptima en:
+              Analizamos tus preferencias pedagógicas con Groq Cloud AI y hemos compilado tu secuencia de lecciones óptima en:
             </p>
 
             <div style={styles.courseHighlight}>

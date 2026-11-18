@@ -17,7 +17,7 @@ export interface VisemeFrame {
 
 export interface TestConnectionResponseDto {
   success: boolean;
-  provider: 'Google Gemini';
+  provider: 'Groq Cloud';
   modelUsed: string;
   phrase: string;
   timestamp: string;

@@ -97,6 +97,37 @@ export class CoursesService {
     });
   }
 
+  async findTeacherCourses(teacherId: string) {
+    const courses = await this.prisma.course.findMany({
+      where: { teacherId },
+      include: {
+        category: true,
+        teacher: { select: { id: true, name: true, email: true } },
+        modules: {
+          include: {
+            lessons: {
+              select: { id: true, title: true, order: true },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return courses.map((course) => ({
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      status: course.status,
+      category: course.category?.name || 'General',
+      teacherId: course.teacherId,
+      teacherName: course.teacher?.name || 'Profesor Docente',
+      modulesCount: course.modules?.length || 0,
+      createdAt: course.createdAt,
+    }));
+  }
+
   async findOne(id: string, userId?: string) {
     const course = await this.prisma.course.findUnique({
       where: { id },

@@ -43,11 +43,11 @@ export class TutorController {
   @Post('test-connection')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Prueba de conexión en tiempo real con Google Gemini API (devuelve frase dinámica y visemas)',
+    summary: 'Prueba de conexión en tiempo real con Groq Cloud AI API (devuelve frase dinámica y visemas)',
   })
   @ApiResponse({ status: 200, description: 'Conexión validada con éxito' })
   async testConnection(@Body() _dto: TestConnectionDto) {
-    return this.tutorService.testGeminiConnection();
+    return this.tutorService.testGroqConnection();
   }
 
   @Get('module-evaluation/context/:moduleId')

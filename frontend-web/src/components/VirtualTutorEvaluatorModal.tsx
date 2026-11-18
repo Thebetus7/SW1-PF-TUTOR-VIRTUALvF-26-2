@@ -195,7 +195,7 @@ export const VirtualTutorEvaluatorModal: React.FC<
   const processingRef = useRef(false);
   const [voiceError, setVoiceError] = useState("");
 
-  // Estados de diagnóstico de la API de Google
+  // Estados de diagnóstico de la API de Groq Cloud
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
   const [apiConnectionStatus, setApiConnectionStatus] = useState<string | null>(
     null,
@@ -357,7 +357,7 @@ export const VirtualTutorEvaluatorModal: React.FC<
     };
   }, [moduleId]);
 
-  // Probar Conexión con IA Google Gemini
+  // Probar Conexión con IA Groq Cloud
   const handleTestConnection = async () => {
     if (testingConnection) return;
     setTestingConnection(true);

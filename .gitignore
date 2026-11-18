@@ -45,6 +45,20 @@ secrets.json
 secrets.*.json
 *secret*.json
 
+# Firebase y Google Services Secrets
+google-services.json
+*/google-services.json
+*/*/google-services.json
+GoogleService-Info.plist
+*/GoogleService-Info.plist
+*/*/GoogleService-Info.plist
+!google-services.json.example
+!*/google-services.json.example
+!*/*/google-services.json.example
+!GoogleService-Info.plist.example
+!*/GoogleService-Info.plist.example
+!*/*/GoogleService-Info.plist.example
+
 # Excepciones: plantillas sin valores sensibles
 !*.example
 !*.example.*

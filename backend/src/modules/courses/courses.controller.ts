@@ -1,5 +1,5 @@
 // backend/src/modules/courses/courses.controller.ts
-import { Controller, Post, Get, Put, Patch, Delete, Body, Param, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Put, Patch, Delete, Body, Param, Query, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -27,10 +27,23 @@ export class CoursesController {
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Listar todos los cursos disponibles en la plataforma' })
-  async findAll(@Request() req: any) {
+  @ApiOperation({ summary: 'Listar todos los cursos disponibles en la plataforma (o propios si ?mine=true)' })
+  async findAll(@Request() req: any, @Query('mine') mine?: string) {
     const userId = req.user?.id;
+    if (mine === 'true' && userId) {
+      return this.coursesService.findTeacherCourses(userId);
+    }
     return this.coursesService.findAll(userId);
+  }
+
+  @Get('teacher/mine')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.TEACHER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar únicamente los cursos creados por el docente autenticado' })
+  @ApiResponse({ status: 200, description: 'Cursos del docente autenticado' })
+  async findMyCourses(@Request() req: any) {
+    return this.coursesService.findTeacherCourses(req.user.id);
   }
 
   @Get(':id')

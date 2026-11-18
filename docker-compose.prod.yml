@@ -25,9 +25,8 @@ services:
       DATABASE_URL: "postgresql://${DB_USER:-skylearn_admin}:${DB_PASSWORD:-securepassword123}@postgres:5432/${DB_NAME:-skylearn_db}?schema=public"
       JWT_SECRET: ${JWT_SECRET:-clave_secreta_jwt_demo_para_pruebas_locales_123}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-demo_key}
-      GEMINI_DEFAULT_MODEL: ${GEMINI_DEFAULT_MODEL:-gemini-2.5-flash}
-      GEMINI_LIVE_MODEL: ${GEMINI_LIVE_MODEL:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-demo_key}
+      GROQ_DEFAULT_MODEL: ${GROQ_DEFAULT_MODEL:-openai/gpt-oss-120b}
       AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
       AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-mock}

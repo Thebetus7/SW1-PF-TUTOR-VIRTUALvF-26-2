@@ -4,7 +4,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/common/prisma/prisma.service';
-import { GeminiService } from '../src/common/services/gemini.service';
+import { GroqService } from '../src/common/services/groq.service';
 import { GlobalHttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { Role, CourseStatus } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
@@ -21,7 +21,7 @@ describe('Vertical Slice 3: Cuestionario Inicial & Rutas Adaptativas (BDD E2E)',
   const demoLessonId = 'l0000000-0000-4000-8000-000000000001';
 
   let studentCredits = 3;
-  let geminiFail = false;
+  let groqFail = false;
 
   const mockCourses = [
     {
@@ -97,9 +97,9 @@ describe('Vertical Slice 3: Cuestionario Inicial & Rutas Adaptativas (BDD E2E)',
     },
   };
 
-  const mockGeminiService = {
+  const mockGroqService = {
     generateJson: jest.fn().mockImplementation((prompt: string, fallbackFn: () => any) => {
-      if (geminiFail) {
+      if (groqFail) {
         return Promise.resolve(fallbackFn());
       }
       return Promise.resolve({
@@ -118,8 +118,8 @@ describe('Vertical Slice 3: Cuestionario Inicial & Rutas Adaptativas (BDD E2E)',
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrismaService)
-      .overrideProvider(GeminiService)
-      .useValue(mockGeminiService)
+      .overrideProvider(GroqService)
+      .useValue(mockGroqService)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -138,7 +138,7 @@ describe('Vertical Slice 3: Cuestionario Inicial & Rutas Adaptativas (BDD E2E)',
 
   beforeEach(() => {
     studentCredits = 3;
-    geminiFail = false;
+    groqFail = false;
     jest.clearAllMocks();
   });
 
@@ -189,8 +189,8 @@ describe('Vertical Slice 3: Cuestionario Inicial & Rutas Adaptativas (BDD E2E)',
       expect(studentCredits).toBe(3);
     });
 
-    it('Given saturación o timeout en el proveedor Gemini, When se procesa el quiz, Then se activa el fallback determinista y entrega la ruta sin error', async () => {
-      geminiFail = true;
+    it('Given saturación o timeout en el proveedor Groq Cloud, When se procesa el quiz, Then se activa el fallback determinista y entrega la ruta sin error', async () => {
+      groqFail = true;
 
       const answersPayload = {
         answers: [

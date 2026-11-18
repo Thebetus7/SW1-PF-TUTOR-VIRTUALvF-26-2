@@ -87,7 +87,7 @@ flowchart TD
 ### 3.1 Decisiones Arquitectónicas del Backend
 - **Framework y Plataforma**: **NestJS 10+** sobre Node.js LTS, implementando principios de diseño modular, separación estricta de capas (Controladores, Servicios de Aplicación, Repositorios) y desacoplamiento de infraestructura.
 - **Persistencia Relacional**: **PostgreSQL 15+** orquestado mediante **Prisma ORM**, garantizando tipado estricto extremo de extremo a extremo, prevención de desalineaciones de esquema y migraciones declarativas reproducibles.
-- **Capa de Inteligencia Artificial**: Integración desacoplada con **Google Gemini API** mediante servicios especializados con contratos de reintentos y degradación elegante.
+- **Capa de Inteligencia Artificial**: Integración desacoplada con **Groq Cloud AI API** (modelos de inferencia de ultra-baja latencia: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b`) mediante servicios especializados con contratos de reintentos, fallback heurístico determinista y degradación elegante.
 - **Capa de Transacciones Financieras**: Integración con **Stripe API** para la creación de sesiones de pago hospedadas y procesamiento seguro de eventos vía webhooks firmados.
 - **Validación y Contratos**: DTOs universales con `class-validator` y `class-transformer`; documentación viva bajo OpenAPI / Swagger.
 

@@ -4,11 +4,12 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/common/prisma/prisma.service';
+import { GroqService } from '../src/common/services/groq.service';
 import { GlobalHttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 
-describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Google Gemini (BDD E2E)', () => {
+describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Groq Cloud (BDD E2E)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
   let studentToken: string;
@@ -40,7 +41,42 @@ describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Google Gemini 
   const attemptsDb: any[] = [];
   const modularExamId = 'e0000000-0000-4000-8000-000000000001';
 
-  const mockPrisma = {
+  let activeSession: any = {
+    id: '00000000-0000-4000-8000-000000000001',
+    userId: studentId,
+    moduleId,
+    nextIndex: 0,
+    results: [],
+    question: 'Pregunta',
+    completed: false,
+    createdAt: new Date(),
+  };
+
+  const mockPrisma: any = {
+    tutorSession: {
+      create: jest.fn().mockImplementation(({ data }) => {
+        activeSession = {
+          id: '00000000-0000-4000-8000-000000000001',
+          ...data,
+          nextIndex: 0,
+          results: [],
+          completed: false,
+          createdAt: new Date(),
+        };
+        return Promise.resolve(activeSession);
+      }),
+      findUnique: jest.fn().mockImplementation(() => Promise.resolve(activeSession)),
+      findFirst: jest.fn().mockImplementation(() => Promise.resolve(activeSession)),
+      updateMany: jest.fn().mockImplementation(({ data }) => {
+        Object.assign(activeSession, data);
+        return Promise.resolve({ count: 1 });
+      }),
+      update: jest.fn().mockImplementation(({ data }) => {
+        Object.assign(activeSession, data);
+        return Promise.resolve(activeSession);
+      }),
+    },
+    $transaction: jest.fn().mockImplementation((cb) => cb(mockPrisma)),
     module: {
       findUnique: jest.fn().mockImplementation(({ where }) => {
         if (where.id === moduleId) {
@@ -106,12 +142,36 @@ describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Google Gemini 
     },
   };
 
+  const mockGroqService = {
+    generateJson: jest.fn().mockImplementation((prompt, fallbackFn) => {
+      if (prompt.includes('INSTRUCCIONES DE EVALUACIÓN')) {
+        return Promise.resolve({
+          isCorrect: true,
+          feedbackText: '¡Excelente razonamiento! Has captado los conceptos esenciales.',
+          avatarEmotion: 'celebrating',
+          speechSegments: [
+            { text: '¡Excelente razonamiento!', pose: 'celebrating' },
+            { text: 'Has captado los conceptos esenciales.', pose: 'explaining' },
+          ],
+        });
+      }
+      return Promise.resolve({
+        phrase: '¡Hola! Estoy listo para evaluar en tiempo real con Groq Cloud.',
+        questionText: '¿Cómo explicarías los conceptos de esta lección?',
+      });
+    }),
+    generateText: jest.fn().mockResolvedValue('Respuesta de texto generada por IA.'),
+    getActiveModel: jest.fn().mockReturnValue('openai/gpt-oss-120b'),
+  };
+
   beforeAll(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrisma)
+      .overrideProvider(GroqService)
+      .useValue(mockGroqService)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -132,14 +192,14 @@ describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Google Gemini 
   });
 
   // HU-04 & SC-04.1
-  it('SC-04.1: POST /tutor/test-connection debe retornar frase dinámica de Gemini y visemas en tiempo real (Fail-Fast: 5s)', async () => {
+  it('SC-04.1: POST /tutor/test-connection debe retornar frase dinámica de Groq Cloud y visemas en tiempo real (Fail-Fast: 5s)', async () => {
     const res = await request(app.getHttpServer())
       .post('/tutor/test-connection')
       .send({ demoMode: true })
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.provider).toBe('Google Gemini');
+    expect(res.body.provider).toBe('Groq Cloud');
     expect(res.body.phrase).toBeDefined();
     expect(res.body.phrase.length).toBeGreaterThan(10);
     expect(res.body.timestamp).toBeDefined();
@@ -184,6 +244,7 @@ describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Google Gemini 
       .post('/tutor/module-evaluation/answer')
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
+        sessionId: activeSession.id,
         moduleId,
         lessonIndex: 0,
         userResponse: 'Una variable es un espacio reservado en memoria para guardar un valor que puede cambiar.',
@@ -206,6 +267,7 @@ describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Google Gemini 
       .post('/tutor/module-evaluation/answer')
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
+        sessionId: activeSession.id,
         moduleId,
         lessonIndex: 1,
         userResponse: 'Los bucles for y while nos permiten repetir instrucciones mientras se cumpla una condición.',

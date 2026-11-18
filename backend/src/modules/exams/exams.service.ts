@@ -1,7 +1,7 @@
 // backend/src/modules/exams/exams.service.ts
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { GeminiService } from '../../common/services/gemini.service';
+import { GroqService } from '../../common/services/groq.service';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class ExamsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly geminiService: GeminiService,
+    private readonly groqService: GroqService,
   ) {}
 
   async findOne(id: string) {
@@ -38,7 +38,7 @@ export class ExamsService {
    * - Umbral de aprobación: 70%.
    * - Si aprueba (>= 70%), marca automáticamente la lección como completada.
    * - Reintentos libres inmutables: el histórico guarda cada intento y se computa la nota máxima histórica.
-   * - Genera feedback pedagógico personalizado con Gemini o fallback heurístico.
+   * - Genera feedback pedagógico personalizado con Groq Cloud o fallback heurístico.
    */
   async submitExam(userId: string, examId: string, dto: SubmitExamDto) {
     const exam = await this.findOne(examId);
@@ -69,7 +69,7 @@ export class ExamsService {
     const scorePercentage = (correctCount / questions.length) * 100;
     const isPassed = scorePercentage >= (exam.passScore ?? 70.0);
 
-    // Feedback pedagógico Skylearn con Gemini o fallback
+    // Feedback pedagógico Skylearn con Groq Cloud o fallback
     let aiFeedback = isPassed
       ? `¡Excelente trabajo! Has superado el examen con ${scorePercentage.toFixed(1)}% de aciertos.`
       : `Has obtenido ${scorePercentage.toFixed(1)}%. Repasa los conceptos clave y vuelve a intentarlo sin penalización.`;
@@ -80,9 +80,9 @@ Aciertos: ${correctCount}/${questions.length} (${scorePercentage.toFixed(1)}%).
 Aprobado: ${isPassed ? 'SÍ' : 'NO'}.
 Genera un mensaje de aliento motivador, breve (máximo 2 oraciones), empático y formativo.`;
 
-      aiFeedback = await this.geminiService.generateText(prompt, () => aiFeedback);
+      aiFeedback = await this.groqService.generateText(prompt, () => aiFeedback);
     } catch {
-      this.logger.warn('Gemini timeout o error, usando feedback determinista.');
+      this.logger.warn('Groq Cloud timeout o error, usando feedback determinista.');
     }
 
     // Persistir el intento de forma inmutable

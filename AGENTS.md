@@ -80,7 +80,7 @@ El asistente de IA opera con mentalidad de **Tech Lead / Senior Engineer**, asum
 │           ├── plan.md              <-- Plan técnico de los 3 proyectos (back, web, mobile)
 │           └── tasks.md             <-- Checklist atómico TDD con validación dual
 ├── backend/                         <-- Proyecto 1: Backend NestJS + Prisma + PostgreSQL
-│   ├── src/                         <-- Controladores, servicios de dominio, Gemini, Stripe
+│   ├── src/                         <-- Controladores, servicios de dominio, Groq Cloud, Stripe
 │   ├── prisma/                      <-- Esquema Prisma, migraciones y seed.ts
 │   └── test/                        <-- Suites de tests unitarios y BDD E2E
 ├── frontend-web/                    <-- Proyecto 2: Frontend Web React (Vite) para Estudiante

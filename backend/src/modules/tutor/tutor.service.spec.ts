@@ -5,10 +5,10 @@ describe('TutorService (Unit Tests)', () => {
   let tutorService: TutorService;
 
   beforeEach(() => {
-    // Instanciamos con mocks de prisma y gemini para pruebas de lógica pura
+    // Instanciamos con mocks de prisma y groq para pruebas de lógica pura
     const mockPrisma = {} as any;
-    const mockGemini = {} as any;
-    tutorService = new TutorService(mockPrisma, mockGemini);
+    const mockGroq = {} as any;
+    tutorService = new TutorService(mockPrisma, mockGroq);
   });
 
   it('calculateVisemes debe mapear vocales en español a visemas anatómicos correspondientes', () => {

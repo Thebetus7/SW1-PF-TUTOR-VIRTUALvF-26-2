@@ -88,10 +88,16 @@ export function TeacherCourseManager({
   const loadCourses = async () => {
     setIsLoading(true);
     try {
-      const res = await api.get('/courses');
+      const res = await api.get('/courses/teacher/mine');
       setCourses(res.data);
     } catch (err) {
-      console.error('Error cargando módulos del docente:', err);
+      console.warn('Fallo al obtener /courses/teacher/mine, reintentando con ?mine=true:', err);
+      try {
+        const fallbackRes = await api.get('/courses?mine=true');
+        setCourses(fallbackRes.data);
+      } catch (fallbackErr) {
+        console.error('Error cargando cursos del docente:', fallbackErr);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -476,10 +482,10 @@ export function TeacherCourseManager({
             <div className="skylearn-card" style={styles.emptyCard}>
               <FolderPlus size={44} color="var(--color-sky)" style={{ opacity: 0.8 }} />
               <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '8px 0 6px 0' }}>
-                Aún no hay cursos
+                Aún no tienes cursos creados
               </h3>
-              <p style={{ color: 'var(--color-ink-muted)', maxWidth: '420px', margin: '0 0 16px 0', fontSize: '13px' }}>
-                Crea un curso para añadir lecciones con videos y evaluaciones.
+              <p style={{ color: 'var(--color-ink-muted)', maxWidth: '440px', margin: '0 0 16px 0', fontSize: '13px', lineHeight: 1.5 }}>
+                Como docente, eres el autor exclusivo de tu contenido. Crea tu primer curso para estructurar módulos, videos y evaluaciones.
               </p>
               <button
                 className="btn-big-friendly"

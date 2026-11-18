@@ -6,7 +6,7 @@ import { TutorController } from './tutor.controller';
 import { SpeechService } from './speech.service';
 import { LiveTutorService } from './live.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { GeminiService } from '../../common/services/gemini.service';
+import { GroqService } from '../../common/services/groq.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 describe('Tutor evaluation session acceptance', () => {
@@ -26,7 +26,7 @@ describe('Tutor evaluation session acceptance', () => {
       module: { findUnique: jest.fn().mockResolvedValue({ id: 'module', title: 'Funciones', lessons: [0, 1, 2].map(i => ({ id: String(i), title: 'Funciones', contextText: 'Una función agrupa instrucciones.' })) }) },
       $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
     };
-    const service = new TutorService(prisma as unknown as PrismaService, { generateJson: generate } as unknown as GeminiService);
+    const service = new TutorService(prisma as unknown as PrismaService, { generateJson: generate } as unknown as GroqService);
     const module = await Test.createTestingModule({ controllers: [TutorController], providers: [
       { provide: TutorService, useValue: service }, { provide: SpeechService, useValue: {} }, { provide: LiveTutorService, useValue: {} },
     ] }).overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true }).compile();

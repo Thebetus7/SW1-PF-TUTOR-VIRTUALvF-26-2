@@ -37,7 +37,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Plataforma LMS Adaptativa con Tutor 3D')
     .setDescription(
-      'API REST para la gestión de cursos, lecciones, rutas adaptativas con Gemini, paywall Stripe y analítica docente.',
+      'API REST para la gestión de cursos, lecciones, rutas adaptativas con Groq Cloud, paywall Stripe y analítica docente.',
     )
     .setVersion('1.0')
     .addBearerAuth()

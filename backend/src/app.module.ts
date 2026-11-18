@@ -4,7 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './common/prisma/prisma.module';
-import { GeminiModule } from './common/services/gemini.module';
+import { GroqModule } from './common/services/groq.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CoursesModule } from './modules/courses/courses.module';
 import { LessonsModule } from './modules/lessons/lessons.module';
@@ -21,7 +21,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
       envFilePath: '.env',
     }),
     PrismaModule,
-    GeminiModule,
+    GroqModule,
     AuthModule,
     CoursesModule,
     LessonsModule,

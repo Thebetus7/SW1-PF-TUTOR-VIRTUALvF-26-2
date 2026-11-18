@@ -1,7 +1,7 @@
 // backend/src/modules/recommendations/recommendations.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { GeminiService } from '../../common/services/gemini.service';
+import { GroqService } from '../../common/services/groq.service';
 import { SubmitQuizDto } from './dto/submit-quiz.dto';
 import { CourseStatus } from '@prisma/client';
 
@@ -11,7 +11,7 @@ export class RecommendationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly geminiService: GeminiService,
+    private readonly groqService: GroqService,
   ) {}
 
   /**
@@ -62,7 +62,7 @@ export class RecommendationsService {
 
   /**
    * RF-03.3 & RF-03.4 & RF-04.1:
-   * Procesa las respuestas, ensambla la LearningPath con Gemini (o fallback) a costo 0 de créditos
+   * Procesa las respuestas, ensambla la LearningPath con Groq Cloud (o fallback) a costo 0 de créditos
    * e inscribe al alumno con enlace directo de redirección.
    */
   async submitQuiz(userId: string, dto: SubmitQuizDto) {
@@ -82,7 +82,7 @@ export class RecommendationsService {
       orderBy: { createdAt: 'asc' },
     });
 
-    // Fallback heurístico determinista si no hay cursos o si Gemini falla
+    // Fallback heurístico determinista si no hay cursos o si Groq Cloud falla
     const defaultCourse = courses[0];
     const defaultLesson = defaultCourse?.modules[0]?.lessons[0];
 
@@ -119,7 +119,7 @@ Selecciona el curso más idóneo y responde ÚNICAMENTE en JSON con formato:
   "reason": string
 }`;
 
-      aiRecommendation = await this.geminiService.generateJson(prompt, fallbackGenerator);
+      aiRecommendation = await this.groqService.generateJson(prompt, fallbackGenerator);
     }
 
     // Persistir la LearningPath adaptativa en base de datos

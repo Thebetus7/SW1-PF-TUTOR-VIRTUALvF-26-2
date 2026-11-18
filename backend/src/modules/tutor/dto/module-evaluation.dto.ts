@@ -40,6 +40,7 @@ export interface StartModuleEvaluationResponseDto {
 }
 
 export class AnswerModuleEvaluationDto {
+  @ApiProperty({ description: 'ID de sesión evaluativa activa' })
   @IsUUID()
   sessionId: string;
   @ApiProperty({ description: 'ID del módulo en evaluación', example: 'uuid-modulo' })

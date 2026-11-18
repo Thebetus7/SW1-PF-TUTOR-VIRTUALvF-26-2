@@ -602,8 +602,11 @@ export default function App() {
             })
           ) : (
             <View style={styles.emptyCoursesBox}>
-              <Ionicons name="folder-open-outline" size={36} color={SkylearnColors.inkSubtle} />
-              <Text style={styles.emptyCoursesText}>Aún no tienes cursos con alumnos registrados.</Text>
+              <Ionicons name="folder-open-outline" size={40} color={SkylearnColors.sky} style={{ opacity: 0.8 }} />
+              <Text style={styles.emptyCoursesTitle}>Aún no tienes cursos creados</Text>
+              <Text style={styles.emptyCoursesText}>
+                Tus métricas y semáforos se activarán aquí cuando diseñes y publiques cursos desde la plataforma Web.
+              </Text>
             </View>
           )}
         </View>
@@ -1174,12 +1177,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 32,
-    gap: 8,
+    paddingHorizontal: 20,
+    gap: 6,
+  },
+  emptyCoursesTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: SkylearnColors.ink,
+    textAlign: 'center',
+    marginTop: 4,
   },
   emptyCoursesText: {
     fontSize: 13,
     color: SkylearnColors.inkSubtle,
     textAlign: 'center',
+    lineHeight: 18,
   },
   safeBottomSpace: {
     height: 30,

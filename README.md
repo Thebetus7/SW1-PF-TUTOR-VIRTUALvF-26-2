@@ -2,7 +2,7 @@
 
 Bienvenido a la guía oficial de despliegue local de **Skylearn**, una plataforma educativa adaptativa e inteligente compuesta por **3 proyectos desacoplados e independientes**:
 
-1. 🟢 **`backend/`**: API RESTful central en **NestJS 11**, **Prisma ORM**, **PostgreSQL**, **Google Gemini API** (con resiliencia y cascade fallback) y **Stripe Developer Mode**.
+1. 🟢 **`backend/`**: API RESTful central en **NestJS 11**, **Prisma ORM**, **PostgreSQL**, **Groq Cloud AI API** (con resiliencia y cascade fallback) y **Stripe Developer Mode**.
 2. 🔵 **`frontend-web/`**: Aplicación web SPA en **React 19 + TypeScript (Vite)** para estudiantes (catálogo, temarios, reproductor YouTube, tutor 3D Three.js y exámenes) y gestión curricular docente.
 3. 🟣 **`frontend-mobile/`**: Aplicación móvil nativa en **React Native (Expo SDK 57)** para docentes (dashboard de 3 KPIs, semáforo pedagógico y notificaciones push).
 
@@ -98,9 +98,9 @@ DATABASE_URL="postgresql://postgres:tu_password_aqui@localhost:5432/gestor_notas
 JWT_SECRET="super-secret-jwt-key-gestor-notas-2026-univalle"
 JWT_EXPIRES_IN="24h"
 
-# Google Gemini API (Capa Gratuita)
-GEMINI_API_KEY="AIzaSyDemoKeyForDevelopmentMode2026"
-GEMINI_DEFAULT_MODEL="gemini-2.5-flash"
+# Groq Cloud AI API
+GROQ_API_KEY="gsk_tu_clave_real_de_groq_aqui"
+GROQ_DEFAULT_MODEL="openai/gpt-oss-120b"
 
 # Pasarela de Pagos Stripe (Modo de Desarrollo)
 STRIPE_SECRET_KEY="sk_test_51MockStripeSecretKeyForEducation2026"

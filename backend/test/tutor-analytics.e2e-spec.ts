@@ -4,7 +4,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/common/prisma/prisma.service';
-import { GeminiService } from '../src/common/services/gemini.service';
+import { GroqService } from '../src/common/services/groq.service';
 import { GlobalHttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
@@ -175,7 +175,7 @@ describe('Vertical Slice 5: Evaluaciones, Tutor Virtual 3D & Analítica Móvil (
     },
   };
 
-  const mockGeminiService = {
+  const mockGroqService = {
     generateJson: jest.fn().mockImplementation((prompt, fallbackFn) => {
       return Promise.resolve({
         replyText: '¡Excelente pregunta! Recuerda que JSX te permite escribir la interfaz declarativamente.',
@@ -194,8 +194,8 @@ describe('Vertical Slice 5: Evaluaciones, Tutor Virtual 3D & Analítica Móvil (
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrismaService)
-      .overrideProvider(GeminiService)
-      .useValue(mockGeminiService)
+      .overrideProvider(GroqService)
+      .useValue(mockGroqService)
       .compile();
 
     app = moduleFixture.createNestApplication();

@@ -90,6 +90,21 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
         });
       }),
     },
+    tutorSession: {
+      findUnique: jest.fn().mockImplementation(({ where }) => Promise.resolve({
+        id: where.id,
+        userId: where.id === '00000000-0000-4000-8000-000000000051' ? teacherId : studentId,
+        moduleId,
+        nextIndex: 0,
+        results: [],
+        question: 'Pregunta',
+        completed: false,
+        createdAt: new Date(),
+      })),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    $transaction: jest.fn().mockImplementation((cb) => cb(mockPrisma)),
   };
 
   beforeAll(async () => {
@@ -135,6 +150,7 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
       .post('/api/v1/tutor/module-evaluation/answer')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({
+        sessionId: '00000000-0000-4000-8000-000000000051',
         moduleId,
         lessonIndex: 0,
         userResponse: 'Un algoritmo es un conjunto de pasos ordenados y finitos para resolver un problema.',
@@ -159,6 +175,7 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
       .post('/api/v1/tutor/module-evaluation/answer')
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
+        sessionId: '00000000-0000-4000-8000-000000000050',
         moduleId,
         lessonIndex: 0,
         userResponse: 'Los algoritmos ordenan instrucciones para procesar datos eficientemente.',
