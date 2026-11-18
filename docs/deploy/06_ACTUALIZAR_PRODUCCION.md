@@ -1,4 +1,4 @@
-﻿# 🔄 06: Actualizar Producción (Zero-Downtime y Rebuild Rápido)
+# 🔄 06: Actualizar Producción (Zero-Downtime y Rebuild Rápido)
 
 Cuando realices mejoras en el código del Backend o Frontend y hagas push a tu repositorio de GitHub, actualiza el servidor de producción siguiendo estos sencillos pasos.
 

@@ -14,7 +14,17 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+// URL del Backend: toma EXPO_PUBLIC_API_URL del archivo .env.
+// Si no está definido en .env, utiliza 10.0.2.2 en Android (emulador hacia host) o localhost en iOS/Web.
+const DEFAULT_FALLBACK_URL = Platform.OS === 'android'
+  ? 'http://10.0.2.2:3000/api/v1'
+  : 'http://localhost:3000/api/v1';
+
+export const BACKEND_URL = (process.env.EXPO_PUBLIC_API_URL || DEFAULT_FALLBACK_URL).replace(/\/+$/, '');
+
+if (__DEV__) {
+  console.log(`[Mobile API] Conectando a backend en: ${BACKEND_URL}`);
+}
 
 export async function registerForPushNotificationsAsync(teacherToken?: string): Promise<string | null> {
   let token: string | null = null;
