@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1098777690305",
+    "project_id": "proy1-dd3d8",
+    "storage_bucket": "proy1-dd3d8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1098777690305:android:ef334872a340a84a585440",
+        "android_client_info": {
+          "package_name": "com.skylearn.docente"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSI0dO0k8bzb3wwc10y91xtj617Ct8YG8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
