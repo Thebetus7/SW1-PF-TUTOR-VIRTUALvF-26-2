@@ -1,5 +1,5 @@
 // frontend-mobile/App.tsx
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   StyleSheet,
@@ -11,37 +11,25 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
   AppState,
-  type AppStateStatus,
+  Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as Notifications from 'expo-notifications';
+import { Ionicons } from '@expo/vector-icons';
 import { SkylearnColors, SkylearnRadii, SkylearnShadows } from './src/theme/skylearn';
-import { BACKEND_URL, registerForPushNotificationsAsync } from './src/services/notifications';
+import { BACKEND_URL, registerForPushNotificationsAsync, sendLocalTestNotification } from './src/services/notifications';
 
 interface Dashboard {
-  kpis: {
-    activeStudentsCount: number;
-    averagePassRate: number | null;
-    totalCompletions: number;
-  };
-  courses: Array<{
+  kpis: { activeStudentsCount: number; averagePassRate: number | null; totalCompletions: number };
+  courses: {
     id: string;
     title: string;
     studentsCount: number;
     passRate: number | null;
     trafficLight: 'leaf' | 'sun' | 'coral' | null;
-  }>;
-  criticalLesson: {
-    lessonId?: string;
-    lessonTitle: string;
-    courseTitle: string;
-    passRate: number;
-    totalAttempts?: number;
-  } | null;
+  }[];
+  criticalLesson: { lessonTitle: string; courseTitle: string; passRate: number } | null;
 }
 
 export default function App() {
@@ -49,343 +37,341 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [token, setToken] = useState('');
+  const [teacherName, setTeacherName] = useState('Profesor');
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [pushStatus, setPushStatus] = useState<'idle' | 'active' | 'warning'>('idle');
-  const [pushStatusText, setPushStatusText] = useState('Verificando notificaciones...');
+  const [quickFillNotice, setQuickFillNotice] = useState('');
+  const [pushStatus, setPushStatus] = useState('');
   const [pushToken, setPushToken] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Consulta del dashboard con manejo de estado
-  const refresh = useCallback(async (session: string, isManual = false) => {
-    if (isManual) setRefreshing(true);
+  const refresh = useCallback(async (session: string) => {
     try {
       const result = await axios.get<Dashboard>(`${BACKEND_URL}/teacher/dashboard`, {
         headers: { Authorization: `Bearer ${session}` },
+        timeout: 10000,
       });
       setDashboard(result.data);
       setError('');
-      const now = new Date();
-      setLastUpdated(
-        `${now.getHours().toString().padStart(2, '0')}:${now
-          .getMinutes()
-          .toString()
-          .padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`,
-      );
     } catch {
-      setError('No se pudo sincronizar el panel docente. Comprueba la conexión a la red.');
-    } finally {
-      if (isManual) setRefreshing(false);
+      setError('No se pudo actualizar el panel. Comprueba la conexión o inicia sesión de nuevo.');
     }
   }, []);
 
-  // Inicio de sesión
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('Por favor, ingresa tu correo y contraseña.');
-      return;
-    }
+  const onRefresh = useCallback(async () => {
+    if (!token) return;
+    setIsRefreshing(true);
+    await refresh(token);
+    setIsRefreshing(false);
+  }, [token, refresh]);
 
-    setLoading(true);
+  const executeLogin = async (loginEmail: string, loginPass: string) => {
+    setIsLoggingIn(true);
     setError('');
+    setQuickFillNotice('');
 
     try {
-      const result = await axios.post<{ accessToken: string; user: { role: string } }>(
+      const result = await axios.post<{
+        accessToken: string;
+        user: { name?: string; email: string; role: string };
+      }>(
         `${BACKEND_URL}/auth/login`,
-        { email: email.trim(), password },
+        { email: loginEmail.trim(), password: loginPass },
+        { timeout: 10000 },
       );
 
       if (result.data.user.role !== 'TEACHER') {
-        setError('Acceso restringido: esta aplicación móvil es exclusiva para el rol de docente.');
-        setLoading(false);
+        setError('Acceso restringido: Esta aplicación móvil es exclusiva para el rol Docente.');
+        setIsLoggingIn(false);
         return;
       }
 
+      setTeacherName(result.data.user.name || 'Profesor');
       setPassword('');
       setToken(result.data.accessToken);
+      setError('');
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.status === 401) {
-        setError('Credenciales incorrectas. Verifica tu correo y contraseña.');
+      if (axios.isAxiosError(err)) {
+        if (!err.response) {
+          setError(
+            `Error de conexión con el backend en: ${BACKEND_URL}. Verifica que el servidor esté activo y la URL sea alcanzable.`,
+          );
+        } else if (err.response.status === 401) {
+          setError('Credenciales inválidas. Revisa el correo y la contraseña.');
+        } else {
+          setError('Error al iniciar sesión. Inténtalo nuevamente.');
+        }
       } else {
-        setError('No se pudo conectar con el servidor. Verifica tu conexión de red.');
+        setError('No se pudo iniciar sesión. Verifica tu conexión.');
       }
     } finally {
-      setLoading(false);
+      setIsLoggingIn(false);
     }
   };
 
-  // Botón Quick Fill para agilizar pruebas y demostraciones
+  const handleLoginPress = () => {
+    if (!email.trim() || !password) {
+      setError('Por favor, ingresa tu correo y contraseña.');
+      return;
+    }
+    void executeLogin(email, password);
+  };
+
+  /**
+   * Rellena automáticamente los campos con las credenciales demo oficiales del docente
+   */
   const handleQuickFill = () => {
     setEmail('teacher@test.com');
     setPassword('Password123!');
     setError('');
+    setQuickFillNotice('✓ Credenciales de Docente Demo cargadas.');
+    setTimeout(() => setQuickFillNotice(''), 4000);
   };
 
-  // Cierre de sesión seguro y resiliente
+  /**
+   * Ingreso rápido de 1 solo toque (rellena y ejecuta el login directamente)
+   */
+  const handleInstantLogin = () => {
+    setEmail('teacher@test.com');
+    setPassword('Password123!');
+    void executeLogin('teacher@test.com', 'Password123!');
+  };
+
   const handleLogout = async () => {
     if (pushToken && token) {
       try {
         await axios.delete(`${BACKEND_URL}/teacher/device-token`, {
           headers: { Authorization: `Bearer ${token}` },
           data: { pushToken },
+          timeout: 5000,
         });
       } catch {
-        // No bloqueamos el logout local si la petición remota falla
-        console.warn('No se pudo desvincular el push token en el backend.');
+        // Silencioso en logout para no bloquear la salida del usuario
       }
     }
     setToken('');
     setPushToken(null);
     setDashboard(null);
+    setEmail('');
+    setPassword('');
     setError('');
-    setPushStatus('idle');
   };
 
-  // Ciclo de vida y listeners cuando hay sesión activa
   useEffect(() => {
     if (!token) return;
-
     void refresh(token);
 
-    // Registro de push token
     void registerForPushNotificationsAsync(token)
       .then((registered) => {
         setPushToken(registered);
-        if (registered) {
-          setPushStatus('active');
-          setPushStatusText('Alertas en tiempo real conectadas');
-        } else {
-          setPushStatus('warning');
-          setPushStatusText('Notificaciones en modo local / simulado');
-        }
+        setPushStatus(
+          registered
+            ? 'Alertas push activadas en este dispositivo'
+            : 'Notificaciones push pendientes de permisos del sistema',
+        );
       })
-      .catch(() => {
-        setPushStatus('warning');
-        setPushStatusText('Sin permisos de notificaciones push');
-      });
+      .catch(() => setPushStatus('Notificaciones push no disponibles'));
 
-    // Listeners de notificaciones push para auto-refresco
-    const receivedSub = Notifications.addNotificationReceivedListener(() => {
+    const received = Notifications.addNotificationReceivedListener(() => {
       void refresh(token);
     });
-    const responseSub = Notifications.addNotificationResponseReceivedListener(() => {
+    const response = Notifications.addNotificationResponseReceivedListener(() => {
       void refresh(token);
     });
-
-    // Auto-refresco al volver a la aplicación (foreground)
-    const stateSub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (nextState === 'active') {
-        void refresh(token);
-      }
+    const state = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void refresh(token);
     });
-
-    // Polling preventivo cada 30 segundos
     const interval = setInterval(() => {
       void refresh(token);
     }, 30000);
 
     return () => {
-      receivedSub.remove();
-      responseSub.remove();
-      stateSub.remove();
+      received.remove();
+      response.remove();
+      state.remove();
       clearInterval(interval);
     };
   }, [token, refresh]);
 
-  // Semáforo: helper para formato de estado
-  const getTrafficLightInfo = useMemo(() => {
-    return (status: 'leaf' | 'sun' | 'coral' | null) => {
-      switch (status) {
-        case 'leaf':
-          return {
-            color: SkylearnColors.leafDeep,
-            bg: SkylearnColors.leafSoft,
-            label: 'Saludable',
-            icon: 'checkmark-circle' as const,
-          };
-        case 'sun':
-          return {
-            color: SkylearnColors.sunDeep,
-            bg: SkylearnColors.sunSoft,
-            label: 'En Observación',
-            icon: 'alert-circle' as const,
-          };
-        case 'coral':
-          return {
-            color: SkylearnColors.coralDeep,
-            bg: SkylearnColors.coralSoft,
-            label: 'Atención Requerida',
-            icon: 'warning' as const,
-          };
-        default:
-          return {
-            color: SkylearnColors.inkSubtle,
-            bg: SkylearnColors.surfaceSunken,
-            label: 'Sin Evaluaciones',
-            icon: 'help-circle' as const,
-          };
-      }
-    };
-  }, []);
-
-  // ==========================================
-  // VISTA: PANTALLA DE INICIO DE SESIÓN
-  // ==========================================
+  // =========================================================================
+  // VISTA 1: LOGIN AMIGABLE CON AUTOCOMPLETADO Y FILOSOFÍA SKYLEARN
+  // =========================================================================
   if (!token) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardContainer}
+        <ScrollView
+          contentContainerStyle={styles.loginScrollContainer}
+          keyboardShouldPersistTaps="handled"
         >
-          <ScrollView
-            contentContainerStyle={styles.loginScrollContainer}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Header del Login con Iconografía Escolar */}
-            <View style={styles.brandHero}>
-              <View style={styles.brandIconCircle}>
-                <Ionicons name="school" size={40} color={SkylearnColors.sky} />
+          {/* Logo y Encabezado de Marca */}
+          <View style={styles.brandContainer}>
+            <View style={styles.brandIconCircle}>
+              <Ionicons name="school" size={44} color={SkylearnColors.sky} />
+            </View>
+            <View style={styles.brandBadge}>
+              <Text style={styles.brandBadgeText}>PORTAL DOCENTE</Text>
+            </View>
+            <Text style={styles.brandTitle}>Skylearn</Text>
+            <Text style={styles.brandSubtitle}>
+              Supervisión de cursos, métricas de aprobación y alertas pedagógicas en tiempo real.
+            </Text>
+          </View>
+
+          {/* Tarjeta de Inicio de Sesión */}
+          <View style={styles.loginCard}>
+            <Text style={styles.cardTitle}>Iniciar Sesión</Text>
+            <Text style={styles.cardSubtitle}>
+              Ingresa con tus credenciales de docente para acceder a tus métricas.
+            </Text>
+
+            {/* Banner de Mensaje de Error */}
+            {Boolean(error) ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={20} color={SkylearnColors.coralDeep} />
+                <Text style={styles.errorText}>{error}</Text>
               </View>
-              <Text style={styles.brandBadge}>PORTAL DOCENTE</Text>
-              <Text style={styles.loginTitle}>Skylearn Docente</Text>
-              <Text style={styles.loginSubtitle}>
-                Supervisión pedagógica y analítica formativa en tiempo real
-              </Text>
+            ) : null}
+
+            {/* Banner de Aviso de Relleno Rápido */}
+            {Boolean(quickFillNotice) ? (
+              <View style={styles.quickFillNoticeBanner}>
+                <Ionicons name="checkmark-circle" size={18} color={SkylearnColors.leafDeep} />
+                <Text style={styles.quickFillNoticeText}>{quickFillNotice}</Text>
+              </View>
+            ) : null}
+
+            {/* Campo: Correo Electrónico */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Correo electrónico</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="mail-outline"
+                  size={20}
+                  color={SkylearnColors.inkSubtle}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  accessibilityLabel="Correo electrónico del docente"
+                  placeholder="ej. docente@skylearn.edu"
+                  placeholderTextColor={SkylearnColors.inkFaint}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={styles.textInput}
+                />
+              </View>
             </View>
 
-            {/* Tarjeta de Formulario */}
-            <View style={styles.formCard}>
-              {/* Botón Quick Fill Oficial para Demostraciones y QA */}
+            {/* Campo: Contraseña */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Contraseña</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={SkylearnColors.inkSubtle}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  accessibilityLabel="Contraseña del docente"
+                  placeholder="••••••••"
+                  placeholderTextColor={SkylearnColors.inkFaint}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  style={styles.textInput}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.passwordToggle}
+                  hitSlop={10}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={SkylearnColors.inkSubtle}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Botón Principal de Ingreso */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.buttonPressed,
+                isLoggingIn && styles.buttonDisabled,
+              ]}
+              onPress={handleLoginPress}
+              disabled={isLoggingIn}
+            >
+              {isLoggingIn ? (
+                <View style={styles.buttonContent}>
+                  <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.primaryButtonText}>Conectando...</Text>
+                </View>
+              ) : (
+                <View style={styles.buttonContent}>
+                  <Text style={styles.primaryButtonText}>Entrar al Panel</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                </View>
+              )}
+            </Pressable>
+
+            {/* SECCIÓN DE ACCESO RÁPIDO PARA TESTING / DEMO */}
+            <View style={styles.quickAccessDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ACCESO RÁPIDO DE PRUEBA</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.quickAccessContainer}>
+              {/* Botón 1: Rellenar campos */}
               <Pressable
                 style={({ pressed }) => [
                   styles.quickFillButton,
                   pressed && styles.quickFillButtonPressed,
                 ]}
                 onPress={handleQuickFill}
-                accessibilityRole="button"
-                accessibilityLabel="Llenar con credenciales de docente de prueba"
               >
-                <Ionicons name="flash" size={16} color={SkylearnColors.sunDeep} />
-                <Text style={styles.quickFillText}>⚡ Llenar credenciales Docente Demo</Text>
+                <Ionicons name="flash-outline" size={18} color={SkylearnColors.sunDeep} />
+                <Text style={styles.quickFillButtonText}>Autocompletar Docente Demo</Text>
               </Pressable>
 
-              {/* Mensaje de Error Amigable */}
-              {error ? (
-                <View style={styles.errorBanner} accessibilityRole="alert">
-                  <Ionicons name="alert-circle" size={18} color={SkylearnColors.coralDeep} />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : null}
-
-              {/* Campo Correo Electrónico */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Correo electrónico docente</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="mail-outline"
-                    size={20}
-                    color={SkylearnColors.inkSubtle}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="ejemplo@skylearn.edu"
-                    placeholderTextColor={SkylearnColors.inkFaint}
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    autoCorrect={false}
-                    accessibilityLabel="Correo electrónico docente"
-                  />
-                </View>
-              </View>
-
-              {/* Campo Contraseña */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Contraseña</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={20}
-                    color={SkylearnColors.inkSubtle}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Ingresa tu contraseña"
-                    placeholderTextColor={SkylearnColors.inkFaint}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    accessibilityLabel="Contraseña"
-                  />
-                  <Pressable
-                    style={styles.passwordToggle}
-                    onPress={() => setShowPassword(!showPassword)}
-                    accessibilityLabel="Alternar visualización de contraseña"
-                  >
-                    <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color={SkylearnColors.inkSubtle}
-                    />
-                  </Pressable>
-                </View>
-              </View>
-
-              {/* Botón Principal de Inicio de Sesión */}
+              {/* Botón 2: Ingreso instantáneo de 1 toque */}
               <Pressable
                 style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.primaryButtonPressed,
-                  loading && styles.buttonDisabled,
+                  styles.instantLoginButton,
+                  pressed && styles.buttonPressed,
+                  isLoggingIn && styles.buttonDisabled,
                 ]}
-                onPress={handleLogin}
-                disabled={loading}
-                accessibilityRole="button"
-                accessibilityLabel="Iniciar sesión"
+                onPress={handleInstantLogin}
+                disabled={isLoggingIn}
               >
-                {loading ? (
-                  <View style={styles.buttonLoadingRow}>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.primaryButtonText}>Verificando acceso...</Text>
-                  </View>
-                ) : (
-                  <View style={styles.buttonRow}>
-                    <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.primaryButtonText}>Ingresar al Panel</Text>
-                  </View>
-                )}
+                <Ionicons name="play-circle" size={18} color={SkylearnColors.skyDeep} />
+                <Text style={styles.instantLoginButtonText}>Ingreso Directo (1 toque)</Text>
               </Pressable>
             </View>
+          </View>
 
-            {/* Footer Informativo */}
-            <View style={styles.loginFooter}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={SkylearnColors.leafDeep} />
-              <Text style={styles.loginFooterText}>
-                Acceso protegido bajo estándares de seguridad RBAC
-              </Text>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          {/* Pie informativo */}
+          <View style={styles.loginFooter}>
+            <Ionicons name="information-circle-outline" size={16} color={SkylearnColors.inkSubtle} />
+            <Text style={styles.footerText}>
+              ¿Eres estudiante? Utiliza la aplicación Web para interactuar con las lecciones y el Docente Virtual 3D.
+            </Text>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // ==========================================
-  // VISTA: PANEL DOCENTE (DASHBOARD)
-  // ==========================================
-  const activeStudents = dashboard?.kpis.activeStudentsCount ?? 0;
-  const totalCompletions = dashboard?.kpis.totalCompletions ?? 0;
-  const averagePassRate = dashboard?.kpis.averagePassRate;
-
+  // =========================================================================
+  // VISTA 2: DASHBOARD DOCENTE CON SEMÁFORO PEDAGÓGICO Y FILOSOFÍA SKYLEARN
+  // =========================================================================
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -393,292 +379,258 @@ export default function App() {
         contentContainerStyle={styles.dashboardContainer}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void refresh(token, true)}
-            colors={[SkylearnColors.sky]}
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
             tintColor={SkylearnColors.sky}
+            colors={[SkylearnColors.sky]}
           />
         }
       >
-        {/* Cabecera Principal */}
-        <View style={styles.header}>
-          <View style={styles.headerTopRow}>
-            <View>
-              <View style={styles.badgeRow}>
-                <Text style={styles.headerBadge}>PANEL DOCENTE</Text>
-              </View>
-              <Text style={styles.headerTitle}>Skylearn Docente</Text>
-              <Text style={styles.headerSubtitle}>
-                Supervisión pedagógica y analítica formativa
-              </Text>
+        {/* Cabecera Superior: Perfil y Botón de Salida */}
+        <View style={styles.topBar}>
+          <View style={styles.profileInfo}>
+            <View style={styles.avatarMiniCircle}>
+              <Ionicons name="person" size={20} color={SkylearnColors.skyDeep} />
             </View>
-
-            {/* Botón de Logout Rápido */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.iconButtonLogout,
-                pressed && styles.iconButtonPressed,
-              ]}
-              onPress={handleLogout}
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar sesión"
-            >
-              <Ionicons name="log-out-outline" size={20} color={SkylearnColors.coralDeep} />
-            </Pressable>
+            <View>
+              <Text style={styles.teacherNameText}>{teacherName}</Text>
+              <View style={styles.teacherRoleBadge}>
+                <Text style={styles.teacherRoleText}>DOCENTE FORMADOR</Text>
+              </View>
+            </View>
           </View>
 
-          {/* Barra de Notificaciones y Sincronización */}
-          <View style={styles.statusChipRow}>
-            <View
-              style={[
-                styles.statusBadge,
-                pushStatus === 'active'
-                  ? styles.statusBadgeActive
-                  : styles.statusBadgeWarning,
-              ]}
-            >
-              <Ionicons
-                name={pushStatus === 'active' ? 'notifications' : 'notifications-outline'}
-                size={14}
-                color={
-                  pushStatus === 'active'
-                    ? SkylearnColors.leafDeep
-                    : SkylearnColors.sunDeep
-                }
-              />
-              <Text
-                style={[
-                  styles.statusBadgeText,
-                  {
-                    color:
-                      pushStatus === 'active'
-                        ? SkylearnColors.leafDeep
-                        : SkylearnColors.sunDeep,
-                  },
-                ]}
-              >
-                {pushStatusText}
-              </Text>
-            </View>
-
-            {/* Botón de Actualizar Manual */}
+          <View style={styles.topActions}>
             <Pressable
-              style={({ pressed }) => [
-                styles.refreshChip,
-                pressed && styles.refreshChipPressed,
-              ]}
-              onPress={() => void refresh(token, true)}
-              accessibilityRole="button"
+              style={({ pressed }) => [styles.iconActionBtn, pressed && styles.iconActionBtnPressed]}
+              onPress={() => void refresh(token)}
               accessibilityLabel="Actualizar métricas"
             >
-              <Ionicons
-                name="refresh-outline"
-                size={14}
-                color={SkylearnColors.skyDeep}
-              />
-              <Text style={styles.refreshChipText}>
-                {lastUpdated ? `Actualizado ${lastUpdated}` : 'Actualizar'}
-              </Text>
+              <Ionicons name="reload" size={18} color={SkylearnColors.skyDeep} />
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.logoutActionBtn, pressed && styles.iconActionBtnPressed]}
+              onPress={handleLogout}
+              accessibilityLabel="Cerrar sesión"
+            >
+              <Ionicons name="log-out-outline" size={18} color={SkylearnColors.coralDeep} />
+              <Text style={styles.logoutBtnText}>Salir</Text>
             </Pressable>
           </View>
-
-          {/* Banner de Error en Dashboard si ocurre */}
-          {error ? (
-            <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={18} color={SkylearnColors.coralDeep} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
         </View>
 
-        {/* 3 KPIs Principales */}
-        <View style={styles.kpiContainer}>
-          {/* KPI 1: Alumnos Activos */}
-          <View style={styles.kpiCard}>
-            <View style={[styles.kpiIconWrapper, { backgroundColor: SkylearnColors.skySoft }]}>
-              <Ionicons name="people" size={20} color={SkylearnColors.skyDeep} />
-            </View>
-            <Text style={styles.kpiValue}>{dashboard ? activeStudents : '—'}</Text>
-            <Text style={styles.kpiLabel}>Alumnos Activos</Text>
-          </View>
-
-          {/* KPI 2: Lecciones Completadas */}
-          <View style={styles.kpiCard}>
-            <View style={[styles.kpiIconWrapper, { backgroundColor: SkylearnColors.sunSoft }]}>
-              <Ionicons name="checkmark-done-circle" size={20} color={SkylearnColors.sunDeep} />
-            </View>
-            <Text style={styles.kpiValue}>{dashboard ? totalCompletions : '—'}</Text>
-            <Text style={styles.kpiLabel}>Lecciones Vistas</Text>
-          </View>
-
-          {/* KPI 3: Tasa de Aprobación Global */}
-          <View style={[styles.kpiCard, styles.kpiCardHighlight]}>
-            <View style={[styles.kpiIconWrapper, { backgroundColor: SkylearnColors.leafSoft }]}>
-              <Ionicons name="ribbon" size={20} color={SkylearnColors.leafDeep} />
-            </View>
-            <Text style={[styles.kpiValue, { color: SkylearnColors.leafDeep }]}>
-              {dashboard && averagePassRate !== null ? `${averagePassRate}%` : '—'}
-            </Text>
-            <Text style={styles.kpiLabel}>Aprobación Global</Text>
-          </View>
+        {/* Tarjeta de Notificaciones Push con prueba interactiva */}
+        <View style={styles.pushStatusCard}>
+          <View
+            style={[
+              styles.pushDot,
+              { backgroundColor: pushToken ? SkylearnColors.leaf : SkylearnColors.sun },
+            ]}
+          />
+          <Ionicons
+            name={pushToken ? 'notifications-outline' : 'notifications-off-outline'}
+            size={18}
+            color={pushToken ? SkylearnColors.leafDeep : SkylearnColors.sunDeep}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.pushStatusText} numberOfLines={1}>
+            {pushStatus || 'Alertas push conectadas'}
+          </Text>
+          <Pressable
+            style={styles.testNotificationBtn}
+            onPress={async () => {
+              await sendLocalTestNotification(
+                '🎓 Skylearn Docente: Alerta de Prueba',
+                '¡Las notificaciones están funcionando perfectamente en tu dispositivo!',
+              );
+            }}
+          >
+            <Ionicons name="paper-plane-outline" size={14} color={SkylearnColors.skyDeep} />
+            <Text style={styles.testNotificationBtnText}>Probar</Text>
+          </Pressable>
         </View>
 
-        {/* Alerta de Lección Crítica con Menor Tasa de Aprobación */}
-        {dashboard?.criticalLesson ? (
-          <View style={styles.criticalCard}>
-            <View style={styles.criticalHeader}>
-              <View style={styles.criticalBadge}>
-                <Ionicons name="warning" size={14} color={SkylearnColors.coralDeep} />
-                <Text style={styles.criticalBadgeText}>ATENCIÓN PEDAGÓGICA</Text>
-              </View>
-              <Text style={styles.criticalRateText}>
-                {Math.round(dashboard.criticalLesson.passRate)}% aprobación
-              </Text>
-            </View>
-
-            <Text style={styles.criticalTitle}>
-              {dashboard.criticalLesson.lessonTitle}
-            </Text>
-            <Text style={styles.criticalSubtitle}>
-              Curso: {dashboard.criticalLesson.courseTitle}
-            </Text>
-
-            <View style={styles.criticalAdviceBox}>
-              <Ionicons name="bulb-outline" size={16} color={SkylearnColors.sunDeep} />
-              <Text style={styles.criticalAdviceText}>
-                Esta lección presenta la mayor fricción evaluativa. Considera reforzar el video o
-                ajustar la dificultad del banco de preguntas.
-              </Text>
-            </View>
+        {/* Error si lo hay */}
+        {Boolean(error) ? (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={18} color={SkylearnColors.coralDeep} />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
 
-        {/* Sección: Salud Pedagógica de Cursos (Semáforo) */}
-        <View style={styles.coursesSection}>
-          <View style={styles.sectionHeaderRow}>
+        {/* 3 KPIs PRINCIPALES (TARJETAS SKYLEARN) */}
+        <View style={styles.kpiContainer}>
+          {/* KPI 1: Alumnos */}
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconWrap, { backgroundColor: SkylearnColors.skySoft }]}>
+              <Ionicons name="people" size={20} color={SkylearnColors.skyDeep} />
+            </View>
+            <Text style={styles.kpiValue}>{dashboard?.kpis.activeStudentsCount ?? '—'}</Text>
+            <Text style={styles.kpiLabel}>Estudiantes</Text>
+          </View>
+
+          {/* KPI 2: Completadas */}
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconWrap, { backgroundColor: SkylearnColors.sunSoft }]}>
+              <Ionicons name="ribbon" size={20} color={SkylearnColors.sunDeep} />
+            </View>
+            <Text style={[styles.kpiValue, { color: SkylearnColors.sunDeep }]}>
+              {dashboard?.kpis.totalCompletions ?? '—'}
+            </Text>
+            <Text style={styles.kpiLabel}>Completadas</Text>
+          </View>
+
+          {/* KPI 3: Aprobación */}
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconWrap, { backgroundColor: SkylearnColors.leafSoft }]}>
+              <Ionicons name="trending-up" size={20} color={SkylearnColors.leafDeep} />
+            </View>
+            <Text style={[styles.kpiValue, { color: SkylearnColors.leafDeep }]}>
+              {dashboard?.kpis.averagePassRate == null
+                ? '—'
+                : `${dashboard.kpis.averagePassRate}%`}
+            </Text>
+            <Text style={styles.kpiLabel}>Aprobación</Text>
+          </View>
+        </View>
+
+        {/* ALERTA DE LECCIÓN CRÍTICA */}
+        {dashboard?.criticalLesson ? (
+          <View style={styles.criticalLessonCard}>
+            <View style={styles.criticalHeaderRow}>
+              <View style={styles.criticalBadge}>
+                <Ionicons name="warning" size={16} color={SkylearnColors.coralDeep} />
+                <Text style={styles.criticalBadgeText}>ATENCIÓN DIDÁCTICA</Text>
+              </View>
+              <Text style={styles.criticalPassRate}>
+                {Math.round(dashboard.criticalLesson.passRate)}% aprobación
+              </Text>
+            </View>
+            <Text style={styles.criticalLessonTitle}>
+              {dashboard.criticalLesson.lessonTitle}
+            </Text>
+            <Text style={styles.criticalCourseTitle}>
+              Curso: {dashboard.criticalLesson.courseTitle}
+            </Text>
+            <Text style={styles.criticalAdvice}>
+              Esta lección presenta la menor tasa de comprensión. Considera reforzar los conceptos clave o revisar las preguntas evaluadas por el Docente Virtual.
+            </Text>
+          </View>
+        ) : null}
+
+        {/* SEMÁFORO PEDAGÓGICO DE CURSOS */}
+        <View style={styles.statusSection}>
+          <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionTitle}>Salud Pedagógica por Curso</Text>
               <Text style={styles.sectionSubtitle}>
-                Monitoreo según tasa de aprobación en exámenes
+                Monitoreo preventivo del progreso de tus alumnos
               </Text>
             </View>
           </View>
 
           {/* Leyenda del Semáforo */}
-          <View style={styles.legendRow}>
+          <View style={styles.trafficLegendRow}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: SkylearnColors.leafDeep }]} />
-              <Text style={styles.legendText}>≥80% Saludable</Text>
+              <View style={[styles.legendDot, { backgroundColor: SkylearnColors.leaf }]} />
+              <Text style={styles.legendText}>≥75% Óptimo</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: SkylearnColors.sunDeep }]} />
-              <Text style={styles.legendText}>60-79% Observación</Text>
+              <View style={[styles.legendDot, { backgroundColor: SkylearnColors.sun }]} />
+              <Text style={styles.legendText}>60-74% Alerta</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: SkylearnColors.coralDeep }]} />
-              <Text style={styles.legendText}>&lt;60% Fricción</Text>
+              <View style={[styles.legendDot, { backgroundColor: SkylearnColors.coral }]} />
+              <Text style={styles.legendText}>&lt;60% Riesgo</Text>
             </View>
           </View>
 
           {/* Lista de Cursos */}
           {dashboard?.courses && dashboard.courses.length > 0 ? (
             dashboard.courses.map((course) => {
-              const statusInfo = getTrafficLightInfo(course.trafficLight);
+              const statusColor = course.trafficLight
+                ? SkylearnColors[course.trafficLight]
+                : SkylearnColors.inkSubtle;
+              const statusLabel =
+                course.trafficLight === 'leaf'
+                  ? 'Óptimo'
+                  : course.trafficLight === 'sun'
+                    ? 'Atención'
+                    : course.trafficLight === 'coral'
+                      ? 'Riesgo'
+                      : 'Sin evaluar';
+
               return (
-                <View key={course.id} style={styles.courseCard}>
-                  <View style={styles.courseCardHeader}>
+                <View style={styles.courseCard} key={course.id}>
+                  <View style={styles.courseHeader}>
                     <View style={styles.courseTitleWrapper}>
-                      <Text style={styles.courseTitle} numberOfLines={2}>
-                        {course.title}
+                      <Text style={styles.courseTitle}>{course.title}</Text>
+                      <Text style={styles.courseStats}>
+                        {course.studentsCount} {course.studentsCount === 1 ? 'estudiante' : 'estudiantes'} inscritos
                       </Text>
                     </View>
-                    <View style={[styles.courseStatusBadge, { backgroundColor: statusInfo.bg }]}>
-                      <Ionicons name={statusInfo.icon} size={14} color={statusInfo.color} />
-                      <Text style={[styles.courseStatusBadgeText, { color: statusInfo.color }]}>
-                        {statusInfo.label}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.courseMetaRow}>
-                    <View style={styles.courseMetaItem}>
-                      <Ionicons
-                        name="people-outline"
-                        size={15}
-                        color={SkylearnColors.inkMuted}
-                      />
-                      <Text style={styles.courseMetaText}>
-                        {course.studentsCount}{' '}
-                        {course.studentsCount === 1 ? 'estudiante' : 'estudiantes'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.courseMetaItem}>
-                      <Ionicons
-                        name="stats-chart-outline"
-                        size={15}
-                        color={SkylearnColors.inkMuted}
-                      />
-                      <Text style={styles.courseMetaText}>
-                        {course.passRate === null
-                          ? 'Sin evaluaciones'
-                          : `${course.passRate}% de aprobación`}
+                    <View style={[styles.courseStatusPill, { backgroundColor: `${statusColor}20` }]}>
+                      <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+                      <Text style={[styles.statusLabelText, { color: statusColor }]}>
+                        {statusLabel}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Barra de Progreso Visual */}
-                  {course.passRate !== null ? (
-                    <View style={styles.progressBarTrack}>
-                      <View
-                        style={[
-                          styles.progressBarFill,
-                          {
-                            width: `${Math.min(100, Math.max(0, course.passRate))}%`,
-                            backgroundColor: statusInfo.color,
-                          },
-                        ]}
-                      />
-                    </View>
-                  ) : null}
+                  {/* Barra de progreso de aprobación */}
+                  <View style={styles.progressBarTrack}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          width: `${Math.min(course.passRate ?? 0, 100)}%`,
+                          backgroundColor: statusColor,
+                        },
+                      ]}
+                    />
+                  </View>
+
+                  <View style={styles.courseFooter}>
+                    <Text style={styles.footerStatLabel}>Tasa de Aprobación:</Text>
+                    <Text style={[styles.footerStatValue, { color: statusColor }]}>
+                      {course.passRate === null ? 'Pendiente' : `${course.passRate}%`}
+                    </Text>
+                  </View>
                 </View>
               );
             })
           ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="file-tray-outline" size={40} color={SkylearnColors.inkSubtle} />
-              <Text style={styles.emptyTitle}>Aún no tienes cursos registrados</Text>
-              <Text style={styles.emptySubtitle}>
-                Crea tu primer curso en la plataforma web para comenzar a recibir métricas de tus
-                alumnos.
-              </Text>
+            <View style={styles.emptyCoursesBox}>
+              <Ionicons name="folder-open-outline" size={36} color={SkylearnColors.inkSubtle} />
+              <Text style={styles.emptyCoursesText}>Aún no tienes cursos con alumnos registrados.</Text>
             </View>
           )}
         </View>
+
+        <View style={styles.safeBottomSpace} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// =========================================================================
+// ESTILOS ERGONÓMICOS SKYLEARN Y REGLAS DE PERFORMANCE REACT NATIVE
+// =========================================================================
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: SkylearnColors.surface,
   },
-  keyboardContainer: {
-    flex: 1,
-  },
-
-  // ESTILOS DE LOGIN
   loginScrollContainer: {
-    padding: 24,
-    paddingTop: 48,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'android' ? 40 : 20,
     paddingBottom: 40,
-    justifyContent: 'center',
-  },
-  brandHero: {
     alignItems: 'center',
-    marginBottom: 28,
+  },
+  brandContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
   brandIconCircle: {
     width: 80,
@@ -687,23 +639,28 @@ const styles = StyleSheet.create({
     backgroundColor: SkylearnColors.skySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    ...SkylearnShadows.card,
+    marginBottom: 12,
   },
   brandBadge: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: SkylearnColors.skyDeep,
-    letterSpacing: 1.2,
+    backgroundColor: SkylearnColors.skySoft,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: SkylearnRadii.full,
     marginBottom: 6,
   },
-  loginTitle: {
-    fontSize: 26,
+  brandBadgeText: {
+    fontSize: 11,
     fontWeight: '800',
-    color: SkylearnColors.ink,
-    textAlign: 'center',
+    color: SkylearnColors.skyDeep,
+    letterSpacing: 0.8,
   },
-  loginSubtitle: {
+  brandTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: SkylearnColors.ink,
+    letterSpacing: -0.5,
+  },
+  brandSubtitle: {
     fontSize: 14,
     color: SkylearnColors.inkMuted,
     textAlign: 'center',
@@ -711,46 +668,36 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingHorizontal: 12,
   },
-  formCard: {
+  loginCard: {
+    width: '100%',
     backgroundColor: SkylearnColors.surfaceElevated,
     borderRadius: SkylearnRadii.xl,
-    padding: 22,
+    padding: 24,
     borderWidth: 1,
     borderColor: SkylearnColors.outline,
     ...SkylearnShadows.card,
   },
-  quickFillButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SkylearnColors.sunSoft,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: SkylearnRadii.md,
-    borderWidth: 1,
-    borderColor: SkylearnColors.sunBright,
-    marginBottom: 18,
-    gap: 8,
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: SkylearnColors.ink,
   },
-  quickFillButtonPressed: {
-    opacity: 0.75,
-    transform: [{ scale: 0.98 }],
-  },
-  quickFillText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: SkylearnColors.sunDeep,
+  cardSubtitle: {
+    fontSize: 13,
+    color: SkylearnColors.inkMuted,
+    marginTop: 4,
+    marginBottom: 20,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: SkylearnColors.coralSoft,
-    borderRadius: SkylearnRadii.sm,
+    borderColor: SkylearnColors.coral,
+    borderWidth: 1,
     padding: 12,
+    borderRadius: SkylearnRadii.md,
     marginBottom: 16,
     gap: 10,
-    borderWidth: 1,
-    borderColor: SkylearnColors.coral,
   },
   errorText: {
     flex: 1,
@@ -758,6 +705,23 @@ const styles = StyleSheet.create({
     color: SkylearnColors.coralDeep,
     fontWeight: '600',
     lineHeight: 18,
+  },
+  quickFillNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: SkylearnColors.leafSoft,
+    borderColor: SkylearnColors.leaf,
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: SkylearnRadii.md,
+    marginBottom: 16,
+    gap: 8,
+  },
+  quickFillNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    color: SkylearnColors.leafDeep,
+    fontWeight: '700',
   },
   inputGroup: {
     marginBottom: 16,
@@ -771,12 +735,12 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: SkylearnColors.background,
-    borderWidth: 1.5,
+    backgroundColor: SkylearnColors.surface,
+    borderWidth: 1,
     borderColor: SkylearnColors.outline,
-    borderRadius: SkylearnRadii.sm,
+    borderRadius: SkylearnRadii.md,
     paddingHorizontal: 14,
-    minHeight: 48,
+    height: 50,
   },
   inputIcon: {
     marginRight: 10,
@@ -785,7 +749,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: SkylearnColors.ink,
-    paddingVertical: 12,
   },
   passwordToggle: {
     padding: 6,
@@ -793,153 +756,224 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: SkylearnColors.sky,
     borderRadius: SkylearnRadii.md,
-    minHeight: 50,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
     ...SkylearnShadows.card,
   },
-  primaryButtonPressed: {
-    backgroundColor: SkylearnColors.skyDeep,
+  buttonPressed: {
+    opacity: 0.85,
     transform: [{ scale: 0.99 }],
   },
   buttonDisabled: {
-    opacity: 0.65,
+    opacity: 0.6,
   },
-  buttonRow: {
+  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  buttonLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  quickAccessDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    gap: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: SkylearnColors.outline,
+  },
+  dividerText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: SkylearnColors.inkSubtle,
+    letterSpacing: 0.8,
+  },
+  quickAccessContainer: {
+    gap: 10,
+  },
+  quickFillButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SkylearnColors.sunSoft,
+    borderWidth: 1,
+    borderColor: SkylearnColors.sun,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: SkylearnRadii.md,
+    gap: 8,
+  },
+  quickFillButtonPressed: {
+    backgroundColor: '#FDE68A',
+  },
+  quickFillButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: SkylearnColors.sunDeep,
+  },
+  instantLoginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SkylearnColors.skySoft,
+    borderWidth: 1,
+    borderColor: SkylearnColors.sky,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: SkylearnRadii.md,
+    gap: 8,
+  },
+  instantLoginButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: SkylearnColors.skyDeep,
   },
   loginFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 24,
-    gap: 6,
+    paddingHorizontal: 16,
+    gap: 8,
   },
-  loginFooterText: {
+  footerText: {
+    flex: 1,
     fontSize: 12,
-    color: SkylearnColors.inkMuted,
-    fontWeight: '500',
+    color: SkylearnColors.inkSubtle,
+    lineHeight: 18,
   },
 
-  // ESTILOS DE DASHBOARD
+  // =========================================================================
+  // ESTILOS DEL DASHBOARD
+  // =========================================================================
   dashboardContainer: {
-    padding: 20,
-    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 24 : 12,
     paddingBottom: 40,
   },
-  header: {
-    marginBottom: 20,
-  },
-  headerTopRow: {
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  badgeRow: {
+  profileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 12,
   },
-  headerBadge: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: SkylearnColors.skyDeep,
-    backgroundColor: SkylearnColors.skySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: SkylearnRadii.full,
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: SkylearnColors.ink,
-    marginTop: 2,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: SkylearnColors.inkMuted,
-    marginTop: 2,
-  },
-  iconButtonLogout: {
+  avatarMiniCircle: {
     width: 42,
     height: 42,
-    borderRadius: SkylearnRadii.full,
-    backgroundColor: SkylearnColors.coralSoft,
+    borderRadius: 21,
+    backgroundColor: SkylearnColors.skySoft,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: SkylearnColors.coral,
+    borderColor: SkylearnColors.sky,
   },
-  iconButtonPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.95 }],
+  teacherNameText: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: SkylearnColors.ink,
   },
-  statusChipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+  teacherRoleBadge: {
+    backgroundColor: SkylearnColors.skySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: SkylearnRadii.full,
-    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  teacherRoleText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: SkylearnColors.skyDeep,
+    letterSpacing: 0.6,
+  },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: SkylearnRadii.md,
+    backgroundColor: SkylearnColors.surfaceElevated,
     borderWidth: 1,
+    borderColor: SkylearnColors.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SkylearnShadows.card,
   },
-  statusBadgeActive: {
-    backgroundColor: SkylearnColors.leafSoft,
-    borderColor: SkylearnColors.leaf,
+  logoutActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 38,
+    borderRadius: SkylearnRadii.md,
+    backgroundColor: SkylearnColors.coralSoft,
+    borderWidth: 1,
+    borderColor: SkylearnColors.coral,
+    gap: 6,
   },
-  statusBadgeWarning: {
-    backgroundColor: SkylearnColors.sunSoft,
-    borderColor: SkylearnColors.sunBright,
-  },
-  statusBadgeText: {
-    fontSize: 12,
+  logoutBtnText: {
+    fontSize: 13,
     fontWeight: '700',
+    color: SkylearnColors.coralDeep,
   },
-  refreshChip: {
+  iconActionBtnPressed: {
+    opacity: 0.7,
+  },
+  pushStatusCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: SkylearnColors.surfaceElevated,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: SkylearnRadii.full,
+    borderRadius: SkylearnRadii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: SkylearnColors.outline,
-    gap: 6,
+    ...SkylearnShadows.card,
   },
-  refreshChipPressed: {
-    backgroundColor: SkylearnColors.surfaceSunken,
+  pushDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 10,
   },
-  refreshChipText: {
+  pushStatusText: {
+    flex: 1,
     fontSize: 12,
-    color: SkylearnColors.skyDeep,
     fontWeight: '600',
+    color: SkylearnColors.inkMuted,
   },
-
-  // KPIS
+  testNotificationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: SkylearnColors.skySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: SkylearnRadii.sm,
+    gap: 4,
+  },
+  testNotificationBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: SkylearnColors.skyDeep,
+  },
   kpiContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 10,
     marginBottom: 20,
   },
@@ -953,11 +987,7 @@ const styles = StyleSheet.create({
     borderColor: SkylearnColors.outline,
     ...SkylearnShadows.card,
   },
-  kpiCardHighlight: {
-    borderColor: SkylearnColors.leaf,
-    backgroundColor: '#F7FCF9',
-  },
-  kpiIconWrapper: {
+  kpiIconWrap: {
     width: 36,
     height: 36,
     borderRadius: SkylearnRadii.full,
@@ -966,29 +996,27 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   kpiValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: SkylearnColors.ink,
+    fontSize: 22,
+    fontWeight: '900',
+    color: SkylearnColors.skyDeep,
   },
   kpiLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: SkylearnColors.inkMuted,
-    marginTop: 4,
+    marginTop: 2,
     textAlign: 'center',
   },
-
-  // LECCIÓN CRÍTICA
-  criticalCard: {
+  criticalLessonCard: {
     backgroundColor: SkylearnColors.coralSoft,
+    borderColor: SkylearnColors.coral,
+    borderWidth: 1.5,
     borderRadius: SkylearnRadii.lg,
     padding: 16,
-    borderWidth: 1,
-    borderColor: SkylearnColors.coral,
-    marginBottom: 22,
+    marginBottom: 20,
     ...SkylearnShadows.card,
   },
-  criticalHeader: {
+  criticalHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -997,52 +1025,37 @@ const styles = StyleSheet.create({
   criticalBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FDE8E8',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: SkylearnRadii.full,
-    gap: 4,
+    gap: 6,
   },
   criticalBadgeText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '900',
     color: SkylearnColors.coralDeep,
     letterSpacing: 0.6,
   },
-  criticalRateText: {
+  criticalPassRate: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
     color: SkylearnColors.coralDeep,
   },
-  criticalTitle: {
+  criticalLessonTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: SkylearnColors.ink,
+    marginBottom: 2,
   },
-  criticalSubtitle: {
+  criticalCourseTitle: {
     fontSize: 13,
-    color: SkylearnColors.inkMuted,
-    marginTop: 2,
     fontWeight: '600',
-  },
-  criticalAdviceBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: SkylearnColors.surfaceElevated,
-    borderRadius: SkylearnRadii.sm,
-    padding: 10,
-    marginTop: 10,
-    gap: 8,
-  },
-  criticalAdviceText: {
-    flex: 1,
-    fontSize: 12,
     color: SkylearnColors.inkMuted,
+    marginBottom: 8,
+  },
+  criticalAdvice: {
+    fontSize: 12,
+    color: SkylearnColors.ink,
     lineHeight: 17,
   },
-
-  // SECCIÓN DE CURSOS
-  coursesSection: {
+  statusSection: {
     backgroundColor: SkylearnColors.surfaceElevated,
     borderRadius: SkylearnRadii.xl,
     padding: 18,
@@ -1050,11 +1063,11 @@ const styles = StyleSheet.create({
     borderColor: SkylearnColors.outline,
     ...SkylearnShadows.card,
   },
-  sectionHeaderRow: {
+  sectionHeader: {
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     color: SkylearnColors.ink,
   },
@@ -1063,14 +1076,14 @@ const styles = StyleSheet.create({
     color: SkylearnColors.inkMuted,
     marginTop: 2,
   },
-  legendRow: {
+  trafficLegendRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: SkylearnColors.surfaceSunken,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: SkylearnRadii.sm,
-    marginBottom: 16,
+    alignItems: 'center',
+    gap: 12,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: SkylearnColors.outline,
+    marginBottom: 14,
   },
   legendItem: {
     flexDirection: 'row',
@@ -1083,7 +1096,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   legendText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: SkylearnColors.inkMuted,
   },
@@ -1091,14 +1104,15 @@ const styles = StyleSheet.create({
     backgroundColor: SkylearnColors.surface,
     borderRadius: SkylearnRadii.md,
     padding: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: SkylearnColors.outline,
-    marginBottom: 12,
   },
-  courseCardHeader: {
+  courseHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 10,
     gap: 8,
   },
   courseTitleWrapper: {
@@ -1106,66 +1120,68 @@ const styles = StyleSheet.create({
   },
   courseTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: SkylearnColors.ink,
-    lineHeight: 20,
   },
-  courseStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: SkylearnRadii.full,
-    gap: 4,
-  },
-  courseStatusBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  courseMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    gap: 16,
-  },
-  courseMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  courseMetaText: {
+  courseStats: {
     fontSize: 12,
     color: SkylearnColors.inkMuted,
-    fontWeight: '600',
+    marginTop: 2,
+  },
+  courseStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: SkylearnRadii.full,
+    gap: 6,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusLabelText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   progressBarTrack: {
     height: 6,
-    backgroundColor: SkylearnColors.surfaceSunken,
+    backgroundColor: SkylearnColors.outline,
     borderRadius: SkylearnRadii.full,
-    marginTop: 10,
     overflow: 'hidden',
+    marginBottom: 8,
   },
   progressBarFill: {
     height: '100%',
     borderRadius: SkylearnRadii.full,
   },
-  emptyContainer: {
+  courseFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  footerStatLabel: {
+    fontSize: 12,
+    color: SkylearnColors.inkMuted,
+    fontWeight: '600',
+  },
+  footerStatValue: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  emptyCoursesBox: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 32,
-    paddingHorizontal: 16,
+    gap: 8,
   },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: SkylearnColors.ink,
-    marginTop: 12,
-  },
-  emptySubtitle: {
+  emptyCoursesText: {
     fontSize: 13,
-    color: SkylearnColors.inkMuted,
+    color: SkylearnColors.inkSubtle,
     textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 18,
+  },
+  safeBottomSpace: {
+    height: 30,
   },
 });
