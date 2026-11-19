@@ -61,6 +61,14 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
   };
 
   const handleCheckExam = () => {
+    if (examSubmitted) {
+      // Modo "Volver a Intentar": limpiar respuestas y estado de envío
+      setExamSubmitted(false);
+      setExamScore(null);
+      setSelectedAnswers({});
+      return;
+    }
+
     const exam = lesson.exams?.[0];
     if (!exam || !exam.questions.length) return;
 
