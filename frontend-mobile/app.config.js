@@ -1,10 +1,19 @@
+const { withAndroidManifest, AndroidConfig } = require('expo/config-plugins');
+
+function withCleartextTraffic(config) {
+  return withAndroidManifest(config, (modConfig) => {
+    const application = AndroidConfig.Manifest.getMainApplicationOrThrow(modConfig.modResults);
+    application.$['android:usesCleartextTraffic'] = 'true';
+    return modConfig;
+  });
+}
+
 module.exports = ({ config }) => {
-  return {
+  return withCleartextTraffic({
     ...config,
     android: {
       ...config.android,
-      usesCleartextTraffic: true,
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON || './google-services.json',
     },
-  };
+  });
 };
