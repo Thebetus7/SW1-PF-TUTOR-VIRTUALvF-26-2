@@ -144,6 +144,16 @@ export class CoursesService {
                 order: true,
                 videoUrl: true,
                 contextText: true,
+                downloadableUrl: true,
+                exams: {
+                  include: {
+                    questions: {
+                      include: {
+                        options: true,
+                      },
+                    },
+                  },
+                },
               },
             },
             exams: {

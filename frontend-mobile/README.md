@@ -67,6 +67,48 @@ Al ejecutar `npx expo start`, Metro Bundler mostrará un menú interactivo y un 
 
 ---
 
+## 📦 Compilación del APK Independiente (`app-debug.apk` como en Flutter)
+
+Para generar un archivo **`.apk` instalable y funcional de forma 100% independiente** en cualquier teléfono o emulador Android (el equivalente directo a `flutter build apk --debug` de Flutter, sin necesidad de tener Metro Bundler ni la computadora corriendo):
+
+### Requisitos Previos:
+- **Android SDK / Android Studio** instalado (con variable `ANDROID_HOME` o `ANDROID_SDK_ROOT`).
+- **Java JDK 17** instalado y configurado en `JAVA_HOME`.
+
+### Comandos en Bash:
+
+```bash
+# 1. Posicionarse en la carpeta frontend-mobile
+cd frontend-mobile
+
+# 2. Configurar la URL de tu backend en el archivo .env para que el APK sepa a dónde consultar:
+# (Ejemplo para red local o IP pública de tu servidor)
+echo "EXPO_PUBLIC_API_URL=http://192.168.1.100:3000/api/v1" > .env
+
+# 3. Generar la estructura nativa limpia de Android con Expo Prebuild
+npx expo prebuild --platform android --clean
+
+# 4. Compilar el APK en modo Debug con Gradle
+cd android
+./gradlew assembleDebug
+```
+
+### 📍 Ubicación del APK Generado:
+Al terminar la compilación con éxito, el archivo binario independiente queda en:
+```text
+frontend-mobile/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 📲 Instalación y Ejecución en Teléfono Android:
+Conecta tu celular Android por cable USB (con depuración USB habilitada) y ejecuta:
+```bash
+# Instalar directamente en el dispositivo conectado
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+*También puedes transferir directamente el archivo `app-debug.apk` a tu teléfono vía cable USB, WhatsApp o Google Drive e instalarlo directamente.*
+
+---
+
 ## ⌨️ Atajos Útiles en la Terminal de Expo
 
 | Tecla | Acción |

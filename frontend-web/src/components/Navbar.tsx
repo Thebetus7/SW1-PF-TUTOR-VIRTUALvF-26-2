@@ -10,7 +10,6 @@ import {
   User,
   Moon,
   Sun,
-  Bot,
   ChevronDown,
 } from 'lucide-react';
 import { ProfileModal } from './ProfileModal';
@@ -130,16 +129,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenCatalog, c
                 >
                   <BookOpen size={15} />
                   <span>{user.role === 'STUDENT' ? 'Cursos disponibles' : 'Catálogo general'}</span>
-                </a>
-
-                {/* Sección Dedicada al Tutor Virtual (no repetido en cada tema) */}
-                <a
-                  href="#/tutor"
-                  style={getNavLinkStyle(isTutorActive)}
-                  title="Docente Virtual Interactivo 3D"
-                >
-                  <Bot size={15} color="var(--color-sky)" />
-                  <span>Docente Virtual</span>
                 </a>
 
                 {user.role === 'TEACHER' && (
