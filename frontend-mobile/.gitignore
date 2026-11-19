@@ -35,8 +35,8 @@ yarn-error.*
 .env*.local
 !.env.example
 
-# Google Services y Firebase
-google-services.json
+# Google Services y Firebase (requerido para compilaciones de EAS Build)
+!google-services.json
 GoogleService-Info.plist
 !google-services.json.example
 !GoogleService-Info.plist.example
