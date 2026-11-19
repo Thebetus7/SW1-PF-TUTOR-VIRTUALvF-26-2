@@ -1,129 +1,126 @@
 # Frontend Móvil - Skylearn Docente (React Native & Expo)
 
-Aplicación d móvil orientada exclusivamente al **Docente / Creador de Contenido**, construida con **React Native (Expo SDK 57)**, **TypeScript** y componentes Skylearn. Permite monitorear el **Dashboard de 3 KPIs**, semáforo pedagógico de salud de cursos con detección de lección crítica y recepción de **notificaciones push directas** ante nuevas inscripciones de alumnos.
+Aplicación móvil orientada exclusivamente al **Docente / Creador de Contenido**, construida con **React Native (Expo SDK 58)**, **TypeScript** y componentes Skylearn. Permite monitorear el **Dashboard de 3 KPIs**, el semáforo pedagógico de salud de cursos con detección de lección crítica y la recepción de **notificaciones push automáticas** (Firebase Cloud Messaging - FCM) ante nuevas inscripciones de alumnos en la plataforma web.
 
 ---
 
-## 📋 Requisitos Previos
+## 📌 Resumen Arquitectónico: ¿Por qué EAS Build en la Nube y no Local?
 
-1. **Node.js**: v18.0.0 o superior (recomendado v20+).
-2. **Backend en ejecución**: El servidor NestJS debe estar corriendo en `http://localhost:3000` (accesible en la red local o mediante IP de tu máquina para pruebas físicas).
-
-En un teléfono físico, configura antes de iniciar Expo `EXPO_PUBLIC_API_URL` con la dirección accesible del backend, por ejemplo `http://192.168.1.10:3000/api/v1`; `localhost` en el teléfono no apunta a la computadora. En PowerShell: `$env:EXPO_PUBLIC_API_URL="http://192.168.1.10:3000/api/v1"`. Inicia sesión con una cuenta docente. Para push remoto se necesita un proyecto Expo/EAS configurado, credenciales de notificación de Android/iOS y una compilación compatible instalada en un dispositivo; el backend debe poder acceder a `https://exp.host`. La app informa si no consigue registrar el dispositivo.
+> [!IMPORTANT]
+> **Lección aprendida & Arquitectura oficial:**
+> 1. **Expo Go NO soporta notificaciones remotas de producción (FCM):** En las versiones modernas de Expo (SDK 52+), Expo Go no carga certificados de Firebase (`google-services.json`), por lo que no puede recibir push notifications reales del backend. Requiere un binario independiente (**`.apk`**).
+> 2. **Compilación local en Windows descartada:** Ejecutar `./gradlew assembleDebug` o `npx expo run:android` en Windows suele fallar debido al límite de 260 caracteres (`MAX_PATH`), espacios en rutas (`PROYECTO FINAL`) y conflictos de CMake / Ninja en C++.
+> 3. **Solución estándar de la industria:** Se utiliza **Expo EAS Build** (servidores Linux optimizados de Expo en la nube) con el perfil `preview` para compilar un archivo binario `.apk` 100% nativo, listo para descargar e instalar en cualquier teléfono Android.
 
 ---
 
-## 🚀 Comandos para Levantar el Frontend Móvil
+## ⚙️ Configuración de Variables de Entorno (`.env` y `eas.json`)
 
-### 1. Desde esta carpeta (`frontend-mobile/`)
+Para que la aplicación móvil se comunique con el backend NestJS, la variable `EXPO_PUBLIC_API_URL` debe apuntar a una IP alcanzable desde el dispositivo móvil (**nunca `localhost`**):
 
+### Archivo `.env` (en `frontend-mobile/`):
+```env
+# Servidor en la Nube / Azure VM (Acceso directo por puerto 80 vía Nginx, sin :3000):
+EXPO_PUBLIC_API_URL=http://172.174.113.121/api/v1
+
+# O si pruebas con Backend local en tu misma red Wi-Fi (reemplaza con tu IPv4 de ipconfig):
+# EXPO_PUBLIC_API_URL=http://192.168.1.100:3000/api/v1
+```
+
+> [!NOTE]
+> En [eas.json](file:///c:/EDBERTO/ULTIMO/SW1/PROYECTO%20FINAL/SW1-PF-TUTOR-VIRTUALvF-26-2/frontend-mobile/eas.json), el perfil `preview` ya incluye por defecto la variable `EXPO_PUBLIC_API_URL` para que el APK compilado en la nube se enlace automáticamente al servidor.
+
+---
+
+## 📦 Guía Definitiva: Generar el APK Instalable con EAS Build
+
+### Paso 1: Requisitos iniciales
+1. Tener cuenta gratuita en [Expo.dev](https://expo.dev).
+2. Tener instalado `eas-cli` globalmente en la computadora (o usar el script con `npx`):
+   ```bash
+   npm install -g eas-cli
+   ```
+
+### Paso 2: Iniciar sesión en Expo
+Desde la terminal en `frontend-mobile`:
 ```bash
-# 1. Instalar dependencias
-npm install
-
-# 2. Iniciar el servidor de desarrollo de Expo (Metro Bundler)
-npm start
-# o también:
-npx expo start
+npx eas login
 ```
+*(Ingresa tu usuario y contraseña de Expo).*
 
-### 2. O desde la raíz del repositorio principal
-
+### Paso 3: Disparar la compilación del APK
+Ejecuta el script preconfigurado:
 ```bash
-npm run dev:mobile
+npm run build:apk
 ```
+*(O el comando directo: `npx --yes eas-cli build --platform android --profile preview`)*.
+
+- Si te pregunta: *"Generate a new Android Keystore?"*, responde **yes**.
+- El proyecto se comprimirá y se enviará a los servidores de compilación de Expo.
+- La terminal mostrará el progreso: `Waiting for build to complete...` (tarda entre 3 y 8 minutos).
 
 ---
 
-## 📱 ¿Cómo Visualizar la Aplicación Móvil?
+## 📲 ¿Dónde se Descarga y Cómo se Instala el APK?
 
-Al ejecutar `npx expo start`, Metro Bundler mostrará un menú interactivo y un código QR en la terminal. Puedes abrir la app de cualquiera de las siguientes formas:
+### ¿Dónde encuentro el instalable?
+1. **En la Terminal:** Al finalizar la compilación, la terminal imprimirá un **código QR** y una URL directa de descarga (ejemplo: `https://expo.dev/artifacts/eas/...apk`).
+2. **En la Web de Expo:** 
+   - Ve a [expo.dev](https://expo.dev) e inicia sesión.
+   - Entra al proyecto **frontend-mobile** -> menú lateral izquierdo **Deploy > Builds**.
+   - Haz clic en la compilación con ícono verde (Finished) y pulsa el botón **"Download"** o **"Install"** para escanear el QR desde tu celular.
 
-### Opción A: En tu navegador web (La más rápida y directa)
-- Presiona la tecla **`w`** en la terminal donde corre Expo.
-- O ejecuta directamente:
-  ```bash
-  npm run web
-  ```
-- Se abrirá en tu navegador en [http://localhost:8081](http://localhost:8081).
-- *(Consejo)*: Presiona `F12` en el navegador y activa la vista de emulación de dispositivo móvil en las DevTools para verlo en formato de pantalla de teléfono.
-
-### Opción B: En tu teléfono celular real con Expo Go (Recomendado)
-1. Instala la app gratuita **Expo Go** en tu smartphone:
-   - **Android**: Desde Google Play Store.
-   - **iOS**: Desde App Store.
-2. Conecta tu celular a la **misma red Wi-Fi** que tu computadora.
-3. Abre Expo Go:
-   - En Android: Presiona **"Scan QR code"** y escanea el código QR de la terminal.
-   - En iOS: Abre la app **Cámara** nativa de tu iPhone, enfoca el código QR y toca el banner amarillo para abrir en Expo Go.
-
-### Opción C: En un Emulador de Android Studio
-1. Asegúrate de tener un emulador Android (AVD) configurado con al menos 4 GB de almacenamiento interno libre.
-2. Con el emulador encendido, presiona la tecla **`a`** en la terminal donde corre Expo.
-- O ejecuta directamente:
-  ```bash
-  npm run android
-  ```
+### 🛡️ Instalación en el Teléfono Android (Bypass de Google Play Protect):
+Al ser un archivo `.apk` compilado para pruebas (modo preview / self-signed keystore), Android mostrará advertencias de seguridad habituales:
+1. **Permiso de orígenes desconocidos:** Cuando el navegador te pregunte, activa *"Permitir instalar aplicaciones de esta fuente"*.
+2. **Advertencia de Google Play Protect ("App bloqueada por Play Protect"):**
+   - **NO presiones "Entendido"** (eso cancela la instalación).
+   - Toca en **"Más detalles"** (o flecha hacia abajo).
+   - Selecciona **"Instalar de todas formas"** (*Install anyway*).
+3. La aplicación `frontend-mobile` se instalará y aparecerá en el menú de tus aplicaciones.
 
 ---
 
-## 📦 Compilación del APK Independiente (`app-debug.apk` como en Flutter)
+## 🧪 Pruebas de Notificaciones Push y Flujo Completo
 
-Para generar un archivo **`.apk` instalable y funcional de forma 100% independiente** en cualquier teléfono o emulador Android (el equivalente directo a `flutter build apk --debug` de Flutter, sin necesidad de tener Metro Bundler ni la computadora corriendo):
-
-### Requisitos Previos:
-- **Android SDK / Android Studio** instalado (con variable `ANDROID_HOME` o `ANDROID_SDK_ROOT`).
-- **Java JDK 17** instalado y configurado en `JAVA_HOME`.
-
-### Comandos en Bash:
-
-```bash
-# 1. Posicionarse en la carpeta frontend-mobile
-cd frontend-mobile
-
-# 2. Configurar la URL de tu backend en el archivo .env para que el APK sepa a dónde consultar:
-# (Ejemplo para red local o IP pública de tu servidor)
-echo "EXPO_PUBLIC_API_URL=http://192.168.1.100:3000/api/v1" > .env
-
-# 3. Generar la estructura nativa limpia de Android con Expo Prebuild
-npx expo prebuild --platform android --clean
-
-# 4. Compilar el APK en modo Debug con Gradle
-cd android
-./gradlew assembleDebug
-```
-
-### 📍 Ubicación del APK Generado:
-Al terminar la compilación con éxito, el archivo binario independiente queda en:
-```text
-frontend-mobile/android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-### 📲 Instalación y Ejecución en Teléfono Android:
-Conecta tu celular Android por cable USB (con depuración USB habilitada) y ejecuta:
-```bash
-# Instalar directamente en el dispositivo conectado
-adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-```
-*También puedes transferir directamente el archivo `app-debug.apk` a tu teléfono vía cable USB, WhatsApp o Google Drive e instalarlo directamente.*
-
----
-
-## ⌨️ Atajos Útiles en la Terminal de Expo
-
-| Tecla | Acción |
-| :---: | :--- |
-| **`w`** | Abre o recarga la app en el navegador web. |
-| **`a`** | Abre la app en el emulador de Android conectado. |
-| **`r`** | Recarga la app en el dispositivo (*Reload*). |
-| **`m`** | Abre el menú de desarrollador en el dispositivo. |
-| **`Ctrl + C`** | Detiene el servidor de Expo. |
-
----
-
-## 🔑 Cuenta Demo para el Móvil
-
-Inicia sesión con la cuenta de docente para visualizar los KPIs y el semáforo didáctico:
-
+### Credenciales de Acceso Docente:
 - **Correo**: `teacher@test.com`
 - **Contraseña**: `Password123!`
+
+### Procedimiento de Prueba E2E:
+1. **Abrir la App en el Celular:** Abre la aplicación e inicia sesión con las credenciales anteriores.
+2. **Aceptar Permisos:** Cuando el sistema operativo solicite *"¿Permitir que Skylearn envíe notificaciones?"*, presiona **Permitir**.
+3. **Verificación de Registro:** En el pie de página de la app, el indicador mostrará: `Push Token registrado en el backend`.
+4. **Prueba Inmediata (Local):** Pulsa el botón **"🔔 Probar Notificación"** dentro de la app móvil para confirmar el canal de sonido y vibración.
+5. **Prueba Real Remota (Inscripción de Estudiante):**
+   - Ve a la plataforma web ([frontend-web](file:///c:/EDBERTO/ULTIMO/SW1/PROYECTO%20FINAL/SW1-PF-TUTOR-VIRTUALvF-26-2/frontend-web)).
+   - Inicia sesión con un alumno (`student@test.com` / `Password123!`).
+   - Inscríbete en cualquier curso creado por el docente.
+   - **Resultado:** En segundos, tu teléfono celular recibirá una notificación push emergente en pantalla:
+     > *"¡Nuevo Alumno Inscrito! Un estudiante se ha inscrito al curso: [Nombre del Curso]. Revisa el panel para monitorear su progreso."*
+
+---
+
+## 💻 Desarrollo Local Rápido (Metro / Web / Expo Go)
+
+Para iteraciones rápidas en diseño de interfaz (UI), tipografía o estilos sin esperar compilaciones de APK:
+
+```bash
+# Iniciar servidor Metro Bundler
+npm start
+
+# Atajos en la terminal de Metro:
+# Presiona 'w' -> Abre la app en el navegador web (http://localhost:8081)
+# Presiona 'a' -> Abre la app en emulador Android Studio local
+# Presiona 'r' -> Recarga la aplicación
+```
+*(Nota: En modo Expo Go o Web, las notificaciones remotas de FCM no son emitidas por las restricciones nativas de Expo Go; se utiliza el mock dev token).*
+
+---
+
+## 🗂️ Archivos Clave del Módulo Móvil
+
+- [App.tsx](file:///c:/EDBERTO/ULTIMO/SW1/PROYECTO%20FINAL/SW1-PF-TUTOR-VIRTUALvF-26-2/frontend-mobile/App.tsx): Dashboard docente de 3 KPIs, semáforo didáctico y receptor de eventos.
+- [src/services/notifications.ts](file:///c:/EDBERTO/ULTIMO/SW1/PROYECTO%20FINAL/SW1-PF-TUTOR-VIRTUALvF-26-2/frontend-mobile/src/services/notifications.ts): Registro de token FCM/Expo con el backend NestJS y canales de alta prioridad.
+- [app.config.js](file:///c:/EDBERTO/ULTIMO/SW1/PROYECTO%20FINAL/SW1-PF-TUTOR-VIRTUALvF-26-2/frontend-mobile/app.config.js): Inyección dinámica del archivo de credenciales de Google Services para EAS Cloud.
+- [eas.json](file:///c:/EDBERTO/ULTIMO/SW1/PROYECTO%20FINAL/SW1-PF-TUTOR-VIRTUALvF-26-2/frontend-mobile/eas.json): Configuración de compilación de APK autónomo y variables de entorno para la nube.

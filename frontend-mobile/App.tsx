@@ -33,6 +33,8 @@ interface Dashboard {
 }
 
 export default function App() {
+  const [serverUrl, setServerUrl] = useState(BACKEND_URL);
+  const [showServerConfig, setShowServerConfig] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -48,7 +50,8 @@ export default function App() {
 
   const refresh = useCallback(async (session: string) => {
     try {
-      const result = await axios.get<Dashboard>(`${BACKEND_URL}/teacher/dashboard`, {
+      const activeUrl = serverUrl.replace(/\/+$/, '');
+      const result = await axios.get<Dashboard>(`${activeUrl}/teacher/dashboard`, {
         headers: { Authorization: `Bearer ${session}` },
         timeout: 10000,
       });
@@ -57,7 +60,7 @@ export default function App() {
     } catch {
       setError('No se pudo actualizar el panel. Comprueba la conexión o inicia sesión de nuevo.');
     }
-  }, []);
+  }, [serverUrl]);
 
   const onRefresh = useCallback(async () => {
     if (!token) return;
@@ -70,13 +73,14 @@ export default function App() {
     setIsLoggingIn(true);
     setError('');
     setQuickFillNotice('');
+    const activeUrl = serverUrl.replace(/\/+$/, '');
 
     try {
       const result = await axios.post<{
         accessToken: string;
         user: { name?: string; email: string; role: string };
       }>(
-        `${BACKEND_URL}/auth/login`,
+        `${activeUrl}/auth/login`,
         { email: loginEmail.trim(), password: loginPass },
         { timeout: 10000 },
       );
@@ -95,7 +99,7 @@ export default function App() {
       if (axios.isAxiosError(err)) {
         if (!err.response) {
           setError(
-            `Error de conexión con el backend en: ${BACKEND_URL}. Verifica que el servidor esté activo y la URL sea alcanzable.`,
+            `Error de conexión con el backend en: ${activeUrl}. Verifica que el servidor esté activo y la URL sea alcanzable.`,
           );
         } else if (err.response.status === 401) {
           setError('Credenciales inválidas. Revisa el correo y la contraseña.');
@@ -141,7 +145,8 @@ export default function App() {
   const handleLogout = async () => {
     if (pushToken && token) {
       try {
-        await axios.delete(`${BACKEND_URL}/teacher/device-token`, {
+        const activeUrl = serverUrl.replace(/\/+$/, '');
+        await axios.delete(`${activeUrl}/teacher/device-token`, {
           headers: { Authorization: `Bearer ${token}` },
           data: { pushToken },
           timeout: 5000,
@@ -162,7 +167,7 @@ export default function App() {
     if (!token) return;
     void refresh(token);
 
-    void registerForPushNotificationsAsync(token)
+    void registerForPushNotificationsAsync(token, serverUrl)
       .then((registered) => {
         setPushToken(registered);
         setPushStatus(
@@ -354,6 +359,51 @@ export default function App() {
                 <Ionicons name="play-circle" size={18} color={SkylearnColors.skyDeep} />
                 <Text style={styles.instantLoginButtonText}>Ingreso Directo (1 toque)</Text>
               </Pressable>
+            </View>
+
+            {/* Configuración de URL del Servidor */}
+            <View style={styles.serverConfigContainer}>
+              <Pressable
+                style={styles.serverConfigToggle}
+                onPress={() => setShowServerConfig(!showServerConfig)}
+              >
+                <Ionicons name="server-outline" size={13} color={SkylearnColors.inkSubtle} />
+                <Text style={styles.serverConfigToggleText} numberOfLines={1}>
+                  {showServerConfig ? 'Ocultar ajuste de servidor' : `API: ${serverUrl}`}
+                </Text>
+                <Ionicons
+                  name={showServerConfig ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color={SkylearnColors.inkSubtle}
+                />
+              </Pressable>
+
+              {showServerConfig ? (
+                <View style={styles.serverConfigBox}>
+                  <Text style={styles.serverConfigLabel}>Dirección del Backend NestJS:</Text>
+                  <TextInput
+                    style={styles.serverConfigInput}
+                    value={serverUrl}
+                    onChangeText={(val) => {
+                      setServerUrl(val);
+                      setError('');
+                    }}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholder="http://172.174.113.121/api/v1"
+                    placeholderTextColor={SkylearnColors.inkFaint}
+                  />
+                  <Pressable
+                    style={styles.serverResetBtn}
+                    onPress={() => {
+                      setServerUrl('http://172.174.113.121/api/v1');
+                      setError('');
+                    }}
+                  >
+                    <Text style={styles.serverResetBtnText}>Restablecer URL Servidor Azure (Puerto 80)</Text>
+                  </Pressable>
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -1195,5 +1245,61 @@ const styles = StyleSheet.create({
   },
   safeBottomSpace: {
     height: 30,
+  },
+  serverConfigContainer: {
+    marginTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: SkylearnColors.outline,
+    paddingTop: 12,
+  },
+  serverConfigToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  serverConfigToggleText: {
+    fontSize: 12,
+    color: SkylearnColors.inkSubtle,
+    fontWeight: '600',
+  },
+  serverConfigBox: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: SkylearnColors.surfaceSunken,
+    borderRadius: SkylearnRadii.md,
+    borderWidth: 1,
+    borderColor: SkylearnColors.outline,
+    gap: 8,
+  },
+  serverConfigLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: SkylearnColors.inkMuted,
+    textTransform: 'uppercase',
+  },
+  serverConfigInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: SkylearnColors.outline,
+    borderRadius: SkylearnRadii.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: SkylearnColors.ink,
+  },
+  serverResetBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: SkylearnRadii.sm,
+    backgroundColor: SkylearnColors.skySoft,
+  },
+  serverResetBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: SkylearnColors.skyDeep,
   },
 });

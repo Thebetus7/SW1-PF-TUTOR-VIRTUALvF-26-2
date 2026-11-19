@@ -14,9 +14,8 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// URL del Backend: toma EXPO_PUBLIC_API_URL del archivo .env.
-// Si no está definido en .env, utiliza la IP de la máquina en red Wi-Fi (192.168.1.100) para Expo Go en celular físico.
-const DEFAULT_FALLBACK_URL = 'http://192.168.1.100:3000/api/v1';
+// URL del Backend: toma EXPO_PUBLIC_API_URL del entorno o recurre al servidor en producción
+const DEFAULT_FALLBACK_URL = 'http://172.174.113.121/api/v1';
 
 export const BACKEND_URL = (process.env.EXPO_PUBLIC_API_URL || DEFAULT_FALLBACK_URL).replace(/\/+$/, '');
 
@@ -24,7 +23,10 @@ if (__DEV__) {
   console.log(`[Mobile API] Conectando a backend en: ${BACKEND_URL}`);
 }
 
-export async function registerForPushNotificationsAsync(teacherToken?: string): Promise<string | null> {
+export async function registerForPushNotificationsAsync(
+  teacherToken?: string,
+  customBackendUrl?: string,
+): Promise<string | null> {
   let token: string | null = null;
 
   if (Platform.OS === 'android') {
@@ -50,7 +52,9 @@ export async function registerForPushNotificationsAsync(teacherToken?: string): 
   }
 
   try {
-    const pushTokenData = await Notifications.getExpoPushTokenAsync();
+    const pushTokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: 'da35e0a8-b40e-4dd7-900c-57e58fca3cf9',
+    });
     token = pushTokenData.data;
   } catch (error) {
     // En Expo Go (especialmente en Android a partir de SDK 51/58),
@@ -65,9 +69,10 @@ export async function registerForPushNotificationsAsync(teacherToken?: string): 
 
   // Registrar el token (real o de desarrollo) en el backend de NestJS
   if (teacherToken && token) {
+    const activeUrl = (customBackendUrl || BACKEND_URL).replace(/\/+$/, '');
     try {
       await axios.post(
-        `${BACKEND_URL}/teacher/device-token`,
+        `${activeUrl}/teacher/device-token`,
         { pushToken: token },
         { headers: { Authorization: `Bearer ${teacherToken}` }, timeout: 8000 },
       );
