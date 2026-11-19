@@ -9,6 +9,7 @@ import {
   PlayCircle,
   Star,
   Sparkles,
+  Bot,
   Info,
   Settings,
   Eye,
@@ -17,6 +18,9 @@ import {
   PlusCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { CollectedContextModal } from '../components/CollectedContextModal';
+import { VirtualTutorEvaluatorModal } from '../components/VirtualTutorEvaluatorModal';
+import type { ModuleEvaluationContext } from '../types/tutor.types';
 
 interface Lesson {
   id: string;
@@ -57,6 +61,10 @@ export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: Cou
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  // Estados para la Evaluación con Docente Virtual y Auditoría
+  const [selectedModuleForEvaluation, setSelectedModuleForEvaluation] = useState<Module | null>(null);
+  const [selectedModuleForContext, setSelectedModuleForContext] = useState<ModuleEvaluationContext | null>(null);
 
   const isTeacher = user?.role === 'TEACHER';
   const isAuthor = isTeacher && Boolean(course?.teacherId && course.teacherId === user?.id);
@@ -112,6 +120,24 @@ export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: Cou
     } finally {
       setIsEnrolling(false);
     }
+  };
+
+  // Abrir modal de detalles recopilados
+  const handleOpenContextModal = (mod: Module) => {
+    if (!course) return;
+    const contextData: ModuleEvaluationContext = {
+      moduleId: mod.id,
+      moduleTitle: mod.title,
+      courseTitle: course.title,
+      totalLessons: mod.lessons.length,
+      lessons: mod.lessons.map((l) => ({
+        id: l.id,
+        order: l.order,
+        title: l.title,
+        contextText: l.contextText || 'Conceptos clave de la clase y video formativo.',
+      })),
+    };
+    setSelectedModuleForContext(contextData);
   };
 
   if (isLoading) {
@@ -407,11 +433,118 @@ export function CourseDetailPage({ courseId, user, onSelectLesson, onBack }: Cou
                     </div>
                   </div>
                 ))}
+
+                {/* FILA ESPECIAL FINAL: Tutor Virtual (Modo Adaptativo por Rol) */}
+                <div style={styles.tutorEvalRow}>
+                  <div style={styles.tutorEvalInfo}>
+                    <div
+                      style={{
+                        ...styles.tutorAvatarBadge,
+                        backgroundColor: isTeacher ? '#7E22CE' : '#2563EB',
+                      }}
+                    >
+                      <Bot size={22} color="#FFFFFF" />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h4 style={styles.tutorEvalTitle}>
+                          {isTeacher
+                            ? 'Tutor Virtual • Modo Simulación Técnica'
+                            : 'Evaluación Práctica con Docente Virtual'}
+                        </h4>
+                        <span
+                          style={{
+                            ...styles.demoBadge,
+                            backgroundColor: 'var(--color-surface-elevated)',
+                            color: 'var(--color-ink)',
+                          }}
+                        >
+                          {isTeacher ? 'Playground Docente • Sin Calificación' : 'Demo • 0 Créditos'}
+                        </span>
+                      </div>
+                      <span style={styles.tutorEvalSubText}>
+                        {isTeacher
+                          ? 'Prueba la interacción y el avatar 3D sin registrar notas en el historial ni alterar los KPIs de los estudiantes.'
+                          : 'Evaluación oral y escrita interactiva con IA: 1 pregunta clave por cada lección de este módulo.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={styles.tutorEvalActions}>
+                    {/* Botón para ver qué datos recopila (HU-01 & RF-01.3) */}
+                    <button
+                      onClick={() => handleOpenContextModal(mod)}
+                      className="btn-secondary"
+                      style={styles.detailsBtn}
+                      title="Ver qué lecciones y conceptos recopila el Docente Virtual para evaluarte"
+                    >
+                      <Info size={16} />
+                      <span>Detalles de Recopilación</span>
+                    </button>
+
+                    {/* Botón de Iniciar Evaluación / Simulación */}
+                    {mod.lessons.length > 0 ? (
+                      <button
+                        onClick={() => setSelectedModuleForEvaluation(mod)}
+                        className={isTeacher ? 'btn-secondary' : 'btn-primary'}
+                        style={{
+                          ...styles.startEvalBtn,
+                          background: isTeacher ? 'var(--color-surface-elevated)' : undefined,
+                          borderColor: isTeacher ? 'var(--color-outline-strong)' : undefined,
+                          color: isTeacher ? 'var(--color-ink)' : undefined,
+                        }}
+                        title={
+                          isTeacher
+                            ? 'Iniciar simulación interactiva con el Tutor Virtual'
+                            : 'Comenzar la evaluación interactiva con el Docente Virtual'
+                        }
+                      >
+                        <Sparkles size={16} color={isTeacher ? 'var(--course-accent)' : '#FFFFFF'} />
+                        <span>{isTeacher ? 'Probar Interacción del Tutor' : 'Comenzar Evaluación (Demo)'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="btn-secondary"
+                        style={{ ...styles.startEvalBtn, opacity: 0.6, cursor: 'not-allowed' }}
+                        title="Este módulo aún no tiene lecciones publicadas"
+                      >
+                        <span>Sin lecciones para evaluar</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* MODAL 1: Auditoría de Datos Recopilados por la IA */}
+      {selectedModuleForContext && (
+        <CollectedContextModal
+          contextData={selectedModuleForContext}
+          onClose={() => setSelectedModuleForContext(null)}
+          onStartEvaluation={() => {
+            const mod = course.modules.find((m) => m.id === selectedModuleForContext.moduleId);
+            if (mod) setSelectedModuleForEvaluation(mod);
+            setSelectedModuleForContext(null);
+          }}
+        />
+      )}
+
+      {/* MODAL 2: Sesión Evaluativa con Docente Virtual Humanoide (Soporte isSimulation) */}
+      {selectedModuleForEvaluation && (
+        <VirtualTutorEvaluatorModal
+          moduleId={selectedModuleForEvaluation.id}
+          moduleTitle={selectedModuleForEvaluation.title}
+          isSimulation={isTeacher}
+          onClose={() => setSelectedModuleForEvaluation(null)}
+          onFinish={() => {
+            loadCourseDetail();
+          }}
+        />
+      )}
     </div>
   );
 }
