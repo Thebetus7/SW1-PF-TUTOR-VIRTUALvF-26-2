@@ -10,7 +10,7 @@ import { TeacherCourseManager } from './pages/TeacherCourseManager';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { VirtualTutorSectionPage } from './pages/VirtualTutorSectionPage';
 import { api } from './services/api';
-import { Compass, BookOpen, ArrowRight, FolderPlus, CheckCircle2, Bot } from 'lucide-react';
+import { Compass, BookOpen, ArrowRight, FolderPlus, CheckCircle2 } from 'lucide-react';
 
 interface UserData {
   id: string;
@@ -274,20 +274,10 @@ export function App() {
 
               <div style={styles.bannerActions}>
                 {user.role === 'STUDENT' ? (
-                  <>
-                    <button className="btn-big-friendly" onClick={() => setShowQuiz(true)}>
-                      <Compass size={17} />
-                      <span>Test de Recomendación</span>
-                    </button>
-                    <a
-                      href="#/tutor"
-                      className="btn-secondary"
-                      style={{ textDecoration: 'none' }}
-                    >
-                      <Bot size={16} color="var(--color-sky)" />
-                      <span>Ir al Docente Virtual</span>
-                    </a>
-                  </>
+                  <button className="btn-big-friendly" onClick={() => setShowQuiz(true)}>
+                    <Compass size={17} />
+                    <span>Test de Recomendación</span>
+                  </button>
                 ) : (
                   <button
                     className="btn-big-friendly"
