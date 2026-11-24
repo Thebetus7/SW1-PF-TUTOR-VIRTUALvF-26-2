@@ -1,6 +1,6 @@
 # Plan Técnico: Plataforma LMS Adaptativa e Inteligente
 
-> Módulo: `docs/specs/01-sistema-integral/` | Especificación Base: `spec.md` | Estado: Aprobado y Diseñado | Metodología: SDD-Planning
+> Módulo: `docs/specs/01-sistema-integral/` | Versión: 1.3.0 | Especificación Base: `spec.md` | Estado: Iteración Anclada | Metodología: SDD-Planning
 
 ---
 
@@ -125,6 +125,30 @@ sequenceDiagram
 ```
 
 ---
+
+### Recomendación al cerrar la evaluación modular del temario
+
+```mermaid
+sequenceDiagram
+    actor Estudiante
+    participant Web
+    participant Tutor
+    participant Catalogo as PostgreSQL
+    participant IA as Groq
+    Estudiante->>Web: Enviar última respuesta
+    Web->>Tutor: POST /api/v1/tutor/module-evaluation/answer
+    Tutor->>Catalogo: Consultar cursos publicados con lecciones
+    Tutor->>IA: Evaluar respuesta y elegir entre cursos afines
+    IA-->>Tutor: Evaluación y selección opcional
+    Tutor->>Tutor: Validar selección o aplicar regla de afinidad
+    Tutor->>Catalogo: Completar sesión y registrar intento cuando existe examen
+    Tutor-->>Web: finalSummary con recomendación o null
+    Web-->>Estudiante: Puntaje y acceso al curso o al catálogo
+```
+
+En el último turno formal se excluye el curso actual y se reúnen candidatos por términos compartidos con el módulo y sus lecciones o por categoría específica compartida. La misma llamada de evaluación permite a Groq elegir un ID de la lista elegible. Si falta una selección válida, el backend ordena por afinidad y prioriza los temas que conviene reforzar según las respuestas acumuladas. El motivo se construye con contenido del catálogo y del módulo. El resultado usa una recomendación nula si el catálogo está indisponible o carece de alternativas pertinentes. La evaluación conserva su validación y persistencia transaccional. La sugerencia se calcula para el resultado y no requiere persistencia adicional.
+
+El cliente recibe `recommendation?: { courseId: string; courseTitle: string; reason: string } | null`. El enlace usa el enrutado existente `#/courses/:id` o `#/courses`; la simulación docente omite la recomendación.
 
 ## 3. Contratos de Código e Interfaces Tipadas
 

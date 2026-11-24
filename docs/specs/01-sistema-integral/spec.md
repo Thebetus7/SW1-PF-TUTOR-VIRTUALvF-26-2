@@ -1,6 +1,6 @@
 # Especificación Funcional Integral: Plataforma LMS Adaptativa e Inteligente
 
-> Módulo: `docs/specs/01-sistema-integral/` | Versión: 1.2.0 | Estado: Iteración Anclada (Jerarquía Curricular & Navegación) | Metodología: SDD-Spec-Anchored
+> Módulo: `docs/specs/01-sistema-integral/` | Versión: 1.3.0 | Estado: Iteración Anclada | Metodología: SDD-Spec-Anchored
 
 ---
 
@@ -122,6 +122,8 @@ Este documento formaliza y abarca la totalidad del ciclo de vida del producto de
 - **`RF-07.3` [Ubiquitous]**: El sistema deberá soportar comunicación multimodal simétrica: admitir la entrada del estudiante prioritariamente por voz (procesada mediante Speech-to-Text) con soporte alternativo de entrada por texto, y proveer la respuesta del profesor virtual mediante audio sintetizado (Text-to-Speech) y metadatos de sincronización de visemas/blendshapes para la gesticulación expresiva del modelo 3D.
 - **`RF-07.4` [Event-Driven]**: CUANDO se completan las 5-8 preguntas o el estudiante solicita terminar la evaluación oral (`POST /api/v1/tutor/sessions/:id/finish`), el sistema deberá emitir un informe detallado con el puntaje cuantitativo y el diagnóstico cualitativo del desempeño.
 - **`RF-07.5` [Event-Driven]**: JUNTO al informe final de evaluación, el sistema deberá generar una recomendación prescriptiva que retorne un objeto de acción para renderizar un botón directo en el cliente, habilitando una ruta inmediata hacia una lección avanzada recomendada o hacia otro curso/lección relevante dentro del catálogo general de la plataforma.
+- **`RF-07.6` [Event-Driven]**: CUANDO un estudiante responde la última pregunta de la evaluación del temario, el resultado deberá sugerir un curso publicado y distinto al actual si existe una alternativa pertinente. La recomendación incluirá el motivo asociado a lo evaluado y acceso directo al detalle del curso.
+- **`RF-07.7` [Unwanted Behavior]**: SI la IA omite la selección o devuelve un curso fuera de las opciones elegibles, el sistema deberá elegir por afinidad temática con el módulo o sus lecciones, o por categoría específica compartida. Si no puede determinar un curso pertinente, el resultado deberá ofrecer acceso al catálogo. La simulación docente queda exenta de la recomendación.
 
 ### Módulo HU-08: Dashboard General Móvil del Docente y Notificaciones Push
 - **`RF-08.1` [Event-Driven]**: CUANDO un docente consulta su dashboard general móvil (`GET /api/v1/teacher/dashboard`), el sistema deberá retornar los 3 KPIs superiores consolidados (`totalCourses`, `totalStudents`, `overallPassRatePercentage`) junto con el listado de sus cursos, donde cada curso incluye su total de inscritos, semáforo de estado pedagógico (`leaf` para >80%, `sun` para 60-80%, `coral` para <60%) y la lección con mayor tasa de error para intervención directa.
@@ -363,6 +365,22 @@ And retorna un payload con "scoreReport" y un objeto "actionButton" con etiqueta
 And responde con código HTTP 200 OK
 ```
 
+#### SC-07.4.1: Sugerencia al terminar la evaluación del temario
+```gherkin
+Given que el catálogo tiene otro curso publicado con lecciones y afinidad con el contenido evaluado
+When el estudiante responde la última pregunta
+Then el resultado muestra el puntaje y sugiere ese curso con un motivo asociado a lo evaluado
+And el estudiante puede abrir el detalle del curso sugerido antes de cerrar el resultado
+```
+
+#### SC-07.4.2: Continuidad ante una selección inválida de la IA
+```gherkin
+Given que la evaluación de la última respuesta fue exitosa y la IA omite la recomendación o elige un curso fuera de las opciones elegibles
+When el sistema entrega el resultado
+Then el resultado sugiere un curso elegible según las reglas de afinidad
+And cuando no existe una alternativa pertinente ofrece acceso al catálogo
+```
+
 ---
 
 ### Escenarios de HU-08 (Dashboard General Móvil y Notificaciones Docente)
@@ -420,6 +438,7 @@ And el mensaje informa: "¡Nuevo estudiante! [Nombre] se ha inscrito a tu curso 
 | `POST /api/v1/tutor/sessions/:id/interact` | `audioBase64` | String (Base64) | No* | Audio con la voz del estudiante (modo primordial) |
 | `POST /api/v1/tutor/sessions/:id/interact` | `textMessage` | String | No* | Alternativa en texto (*Debe enviarse `audioBase64` o `textMessage`) |
 | `POST /api/v1/tutor/sessions/:id/finish` | N/A | None | No | Concluye la evaluación oral y genera el veredicto y sugerencia |
+| `POST /api/v1/tutor/module-evaluation/answer` | `sessionId`, `moduleId`, `lessonIndex`, `userResponse` | UUID, string, integer, string | Sí | Evalúa el turno actual y devuelve el resumen al procesar la última respuesta. |
 | `GET /api/v1/teacher/dashboard` | N/A | None | No | Requiere rol `TEACHER`; retorna 3 KPIs y semáforo de cursos |
 | `POST /api/v1/teacher/device-token` | `token` | String | Sí | Registra el token de dispositivo móvil para notificaciones push |
 
@@ -438,4 +457,5 @@ And el mensaje informa: "¡Nuevo estudiante! [Nombre] se ha inscrito a tu curso 
 | `GET /api/v1/lessons/:id` (Saldo 0) | `paywallNotice` | Object (HTTP 402) | `{ error: "PAYMENT_REQUIRED", checkoutUrl: string, message: string }` |
 | `POST /api/v1/tutor/sessions/:id/interact` | `tutorResponse` | Object | `{ questionText: string, audioUrl: string, visemes: Array<{ time: number, shape: string, weight: number }>, questionNumber: number, totalQuestions: number }` |
 | `POST /api/v1/tutor/sessions/:id/finish` | `tutorEvaluationReport` | Object | `{ scoreReport: { totalQuestions: number, correctAnswers: number, scorePercentage: number, strengths: string[], weaknesses: string[] }, actionButton: { label: string, targetType: "LESSON" \| "COURSE", targetId: UUID, routeUrl: string } }` |
+| `POST /api/v1/tutor/module-evaluation/answer` (última respuesta de estudiante) | `finalSummary` | Object | Puntaje, aprobación, comentario de cierre y `recommendation` con `{ courseId, courseTitle, reason }` o `null` para ofrecer acceso al catálogo. |
 | `GET /api/v1/analytics/courses/:id/difficulty` | `frictionReport` | Array<Object> | `[{ lessonId, lessonTitle, failureRatePercentage, isCritical: boolean }]` |

@@ -53,6 +53,7 @@ describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Groq Cloud (BD
   };
 
   const mockPrisma: any = {
+    course: { findMany: jest.fn().mockResolvedValue([]) },
     tutorSession: {
       create: jest.fn().mockImplementation(({ data }) => {
         activeSession = {
@@ -85,7 +86,7 @@ describe('Módulo 02: Evaluación con Docente Virtual Humanoide & Groq Cloud (BD
             courseId,
             title: 'Módulo 1: Fundamentos de Programación',
             order: 1,
-            course: { id: courseId, title: 'Curso de JavaScript Moderno' },
+            course: { id: courseId, title: 'Curso de JavaScript Moderno', categoryId: null, category: null },
             lessons: mockLessons,
           });
         }

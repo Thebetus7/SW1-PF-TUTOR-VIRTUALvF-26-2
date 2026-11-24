@@ -2,6 +2,55 @@
 
 Aplicación móvil orientada exclusivamente al **Docente / Creador de Contenido**, construida con **React Native (Expo SDK 58)**, **TypeScript** y componentes Skylearn. Permite monitorear el **Dashboard de 3 KPIs**, el semáforo pedagógico de salud de cursos con detección de lección crítica y la recepción de **notificaciones push automáticas** (Firebase Cloud Messaging - FCM) ante nuevas inscripciones de alumnos en la plataforma web.
 
+## Generar y probar el APK Android
+
+### 1. Preparar PowerShell
+
+Instala Node.js para Windows si hace falta. Abre PowerShell y ejecuta:
+
+```powershell
+Set-Location 'C:\EDBERTO\AVANCE\SW1\SW1-PF-TUTOR-VIRTUALvF-26-2\frontend-mobile'
+node.exe --version
+npm.cmd --version
+npm.cmd ci
+```
+
+Si acabas de instalar Node.js y la terminal no lo encuentra, cierra y vuelve a abrir la aplicación de terminal. Para actualizar la sesión actual si usaste el instalador estándar, ejecuta `$env:Path = "C:\Program Files\nodejs;$env:Path"` y repite las comprobaciones. Usa `npm.cmd` y `npx.cmd` en PowerShell para ejecutar los comandos aunque el sistema bloquee los archivos `.ps1`.
+
+### 2. Entrar al proyecto de Expo
+
+```powershell
+npx.cmd --yes eas-cli login
+npx.cmd --yes eas-cli whoami
+npx.cmd --yes eas-cli project:info
+```
+
+Usa una cuenta con acceso a `@ilusion/frontend-mobile`. Si ya tienes sesión iniciada, empieza por `whoami`.
+
+### 3. Revisar la configuración Android
+
+- Comprueba que `google-services.json` corresponda a `com.skylearn.docente`. Si el archivo se administra desde EAS, configura la variable de archivo `GOOGLE_SERVICES_JSON` para el entorno `preview`.
+- Conserva la clave de firma Android que ya tiene el proyecto. Para probar notificaciones remotas, verifica también que EAS tenga la credencial FCM v1 del mismo proyecto Firebase. Puedes revisar ambas con `npx.cmd --yes eas-cli credentials --platform android`.
+- Revisa `EXPO_PUBLIC_API_URL` en el perfil `preview` de [eas.json](./eas.json). Usa un backend accesible desde el teléfono y común a la web y la app.
+
+### 4. Generar y descargar el APK
+
+```powershell
+npx.cmd --yes eas-cli build --platform android --profile preview
+```
+
+El perfil `preview` genera un APK para distribución interna. EAS muestra el enlace de seguimiento cuando recibe el proyecto. Cuando el estado sea `Finished`, abre ese enlace desde el teléfono y descarga el APK. Para volver a encontrar una compilación terminada, ejecuta:
+
+```powershell
+npx.cmd --yes eas-cli build:list --platform android --status finished
+```
+
+### 5. Probar la notificación de matrícula
+
+Instala el APK, inicia sesión como docente y concede el permiso de notificaciones. Deja la app en segundo plano. En la web, entra con un alumno que todavía no esté matriculado en un curso de ese docente y pulsa **Inscribirme al Curso**. Comprueba que el teléfono reciba **Nueva inscripción en tu curso**.
+
+El botón **Probar** genera una notificación local. La recepción de la alerta de matrícula es la comprobación de la entrega remota. Expo Go admite la prueba local en Android.
+
 ---
 
 ## 📌 Resumen Arquitectónico: ¿Por qué EAS Build en la Nube y no Local?
@@ -29,35 +78,6 @@ EXPO_PUBLIC_API_URL=http://172.174.113.121/api/v1
 
 > [!NOTE]
 > En [eas.json](file:///c:/EDBERTO/ULTIMO/SW1/PROYECTO%20FINAL/SW1-PF-TUTOR-VIRTUALvF-26-2/frontend-mobile/eas.json), el perfil `preview` ya incluye por defecto la variable `EXPO_PUBLIC_API_URL` para que el APK compilado en la nube se enlace automáticamente al servidor.
-
----
-
-## 📦 Guía Definitiva: Generar el APK Instalable con EAS Build
-
-### Paso 1: Requisitos iniciales
-1. Tener cuenta gratuita en [Expo.dev](https://expo.dev).
-2. Tener instalado `eas-cli` globalmente en la computadora (o usar el script con `npx`):
-   ```bash
-   npm install -g eas-cli
-   ```
-
-### Paso 2: Iniciar sesión en Expo
-Desde la terminal en `frontend-mobile`:
-```bash
-npx eas login
-```
-*(Ingresa tu usuario y contraseña de Expo).*
-
-### Paso 3: Disparar la compilación del APK
-Ejecuta el script preconfigurado:
-```bash
-npm run build:apk
-```
-*(O el comando directo: `npx --yes eas-cli build --platform android --profile preview`)*.
-
-- Si te pregunta: *"Generate a new Android Keystore?"*, responde **yes**.
-- El proyecto se comprimirá y se enviará a los servidores de compilación de Expo.
-- La terminal mostrará el progreso: `Waiting for build to complete...` (tarda entre 3 y 8 minutos).
 
 ---
 

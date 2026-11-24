@@ -110,4 +110,15 @@
 - [x] `T6.5` `[TEST: BDD & Dual Verification]`: Agregar suite BDD en `backend/test/course-enrollment.e2e-spec.ts` validando el detalle de curso con temario, inscripción con notificación push al docente y rechazo de lección sin inscripción previa.
 - [x] `T6.6` `[VERIFY: E2E & Build Completo]`: Ejecutar suite completa de tests de backend (`npm run test:backend`), validar compilación limpia en `frontend-web` (`npm run build`) y verificar interactividad fluida con la flecha Atrás en el navegador.
 
+---
+
+## 4. Iteración Anclada: Recomendación después de la evaluación del temario
+
+*Trazabilidad: `HU-07`, `RF-07.6`–`RF-07.7`, `SC-07.4.1`–`SC-07.4.2`.*
+
+- [x] `T7.1` `[IMPL: Backend]` Incluir en el último turno una alternativa publicada, con validación del destino y selección por afinidad si la IA no elige una opción válida.
+- [x] `T7.2` `[IMPL: Frontend]` Mostrar motivo y enlace al curso en el resultado, con acceso al catálogo cuando la recomendación sea nula.
+- [x] `T7.3` `[TEST: Validación Dual]` Cubrir selección válida, respuesta inválida y ausencia de alternativas en pruebas unitarias y de aceptación HTTP.
+- [x] `T7.4` `[VERIFY]` Ejecutar las pruebas del tutor y compilar el backend y la aplicación web.
+
 

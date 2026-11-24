@@ -4,6 +4,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/common/prisma/prisma.service';
+import { GroqService } from '../src/common/services/groq.service';
 import { GlobalHttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
@@ -32,6 +33,7 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
   const attemptsCreated: any[] = [];
 
   const mockPrisma = {
+    course: { findMany: jest.fn().mockResolvedValue([]) },
     user: {
       findUnique: jest.fn().mockImplementation(({ where }) => {
         if (where.id === studentId) {
@@ -61,6 +63,7 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
             courseId,
             title: 'Módulo de Prueba Algoritmos',
             order: 1,
+            course: { title: 'Algoritmos', categoryId: null, category: null },
             lessons: [mockLesson],
           });
         }
@@ -113,6 +116,14 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrisma)
+      .overrideProvider(GroqService)
+      .useValue({
+        generateJson: jest.fn().mockResolvedValue({
+          isCorrect: true,
+          feedbackText: 'Explicaste los conceptos clave del algoritmo.',
+          avatarEmotion: 'celebrating',
+        }),
+      })
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -142,6 +153,7 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
 
   beforeEach(() => {
     attemptsCreated.length = 0;
+    mockPrisma.course.findMany.mockClear();
     mockPrisma.examAttempt.create.mockClear();
   });
 
@@ -164,6 +176,8 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
     expect(res.body.finalSummary).toBeDefined();
     expect(res.body.finalSummary.isSimulation).toBe(true);
     expect(res.body.finalSummary.attemptId).toBeUndefined();
+    expect(res.body.finalSummary.recommendation).toBeUndefined();
+    expect(mockPrisma.course.findMany).not.toHaveBeenCalled();
 
     // Verificación empírica: base de datos libre de notas de prueba
     expect(mockPrisma.examAttempt.create).not.toHaveBeenCalled();
@@ -188,6 +202,7 @@ describe('Slice 1 BDD: Modo Simulación del Tutor Virtual e Inmunidad Analítica
     expect(res.body.finalSummary).toBeDefined();
     expect(res.body.finalSummary.isSimulation).toBe(false);
     expect(res.body.finalSummary.attemptId).toBeDefined();
+    expect(res.body.finalSummary.recommendation).toBeNull();
 
     // Verificación empírica: se persiste el intento formal del alumno
     expect(mockPrisma.examAttempt.create).toHaveBeenCalledTimes(1);

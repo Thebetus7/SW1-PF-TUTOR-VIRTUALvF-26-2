@@ -15,15 +15,40 @@ describe('Tutor evaluation session acceptance', () => {
   const attempt = jest.fn();
   const change = jest.fn();
   const generate = jest.fn();
+  const findCourses = jest.fn();
+  const relatedCourse = {
+    id: 'related',
+    title: 'Funciones y parámetros',
+    description: 'Practica funciones con ejercicios.',
+    categoryId: 'programming',
+  };
   const session = { id: sessionId, userId: 'student', moduleId: 'module', nextIndex: 2, results: [false, false], question: 'Explica una función.', completed: false };
   beforeEach(async () => {
     attempt.mockReset().mockResolvedValue({ id: 'attempt' });
     change.mockReset().mockResolvedValue({ count: 1 });
     generate.mockReset().mockResolvedValue({ isCorrect: false, feedbackText: 'Repasa las funciones.', avatarEmotion: 'encouraging', speechSegments: [] });
+    findCourses.mockReset().mockResolvedValue([relatedCourse]);
     const tx = { tutorSession: { updateMany: change, update: jest.fn() }, exam: { findFirst: jest.fn().mockResolvedValue({ id: 'exam' }) }, examAttempt: { create: attempt } };
     const prisma = {
       tutorSession: { findUnique: jest.fn().mockResolvedValue(session) },
-      module: { findUnique: jest.fn().mockResolvedValue({ id: 'module', title: 'Funciones', lessons: [0, 1, 2].map(i => ({ id: String(i), title: 'Funciones', contextText: 'Una función agrupa instrucciones.' })) }) },
+      module: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'module',
+          courseId: 'current-course',
+          title: 'Funciones',
+          course: {
+            title: 'Programación inicial',
+            categoryId: 'programming',
+            category: { name: 'Programación' },
+          },
+          lessons: [0, 1, 2].map(index => ({
+            id: String(index),
+            title: 'Funciones',
+            contextText: 'Una función agrupa instrucciones.',
+          })),
+        }),
+      },
+      course: { findMany: findCourses },
       $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
     };
     const service = new TutorService(prisma as unknown as PrismaService, { generateJson: generate } as unknown as GroqService);
@@ -42,6 +67,63 @@ describe('Tutor evaluation session acceptance', () => {
     expect(result.body.finalSummary.scorePercentage).toBe(0);
     expect(result.body.finalSummary.approved).toBe(false);
     expect(attempt).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ score: 0, isPassed: false }) }));
+  });
+  it('offers a published course with a reason after the last answer', async () => {
+    const selectedByAi = {
+      id: 'selected-by-ai',
+      title: 'Programación orientada a objetos',
+      description: 'Diseño con clases e instancias.',
+      categoryId: 'programming',
+    };
+    findCourses.mockResolvedValue([relatedCourse, selectedByAi]);
+    generate.mockResolvedValue({
+      isCorrect: false,
+      feedbackText: 'Repasa las funciones.',
+      recommendedCourseId: selectedByAi.id,
+    });
+    const result = await answer().expect(200);
+    expect(result.body.finalSummary.recommendation).toEqual({
+      courseId: selectedByAi.id,
+      courseTitle: selectedByAi.title,
+      reason: 'Está relacionado con lo que estudiaste en «Funciones».',
+    });
+    expect(findCourses).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: { not: 'current-course' },
+        status: 'PUBLISHED',
+        modules: { some: { lessons: { some: {} } } },
+      }),
+    }));
+  });
+  it('chooses a related course if the AI returns the current course', async () => {
+    generate.mockResolvedValue({
+      isCorrect: false,
+      feedbackText: 'Repasa las funciones.',
+      recommendedCourseId: 'current-course',
+    });
+    const result = await answer().expect(200);
+    expect(result.body.finalSummary.recommendation).toEqual({
+      courseId: relatedCourse.id,
+      courseTitle: relatedCourse.title,
+      reason: 'Te ayuda a reforzar «Funciones».',
+    });
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+  it('returns a catalog fallback when there is no related course', async () => {
+    findCourses.mockResolvedValue([{
+      id: 'history',
+      title: 'Historia antigua',
+      description: 'Civilizaciones que marcaron la antigüedad.',
+      categoryId: 'history',
+    }]);
+    const result = await answer().expect(200);
+    expect(result.body.finalSummary.recommendation).toBeNull();
+  });
+  it('records the result even if the catalog is unavailable', async () => {
+    findCourses.mockRejectedValue(new Error('Catalog unavailable'));
+    const result = await answer().expect(200);
+    expect(result.body.finalSummary.recommendation).toBeNull();
+    expect(attempt).toHaveBeenCalledTimes(1);
   });
   it('leaves the turn pending when the AI service fails', async () => {
     generate.mockRejectedValue(new Error('offline'));

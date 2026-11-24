@@ -64,6 +64,12 @@ export class AnswerModuleEvaluationDto {
   isSimulation?: boolean;
 }
 
+export interface CourseRecommendationDto {
+  courseId: string;
+  courseTitle: string;
+  reason: string;
+}
+
 export interface AnswerModuleEvaluationResponseDto {
   isCorrect: boolean;
   feedbackText: string;
@@ -81,6 +87,7 @@ export interface AnswerModuleEvaluationResponseDto {
     approved: boolean;
     scorePercentage: number;
     closingRemarks: string;
+    recommendation?: CourseRecommendationDto | null;
     attemptId?: string;
     isSimulation?: boolean;
   };

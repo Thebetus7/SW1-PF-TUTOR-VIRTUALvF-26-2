@@ -1,5 +1,6 @@
 // backend/src/modules/tutor/tutor.service.ts
 import { Injectable, NotFoundException, BadRequestException, ServiceUnavailableException, ConflictException, Logger } from '@nestjs/common';
+import { CourseStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { GroqService } from '../../common/services/groq.service';
 import { ChatTutorDto } from './dto/chat-tutor.dto';
@@ -15,6 +16,7 @@ import {
   AvatarEmotionType,
   SpeechSegmentDto,
 } from './dto/module-evaluation.dto';
+import { chooseCourseRecommendation, rankCourseCandidates } from './module-course-recommendation';
 
 @Injectable()
 export class TutorService {
@@ -244,6 +246,7 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
     const module = await this.prisma.module.findUnique({
       where: { id: dto.moduleId },
       include: {
+        course: { select: { title: true, categoryId: true, category: { select: { name: true } } } },
         lessons: {
           orderBy: { order: 'asc' },
         },
@@ -261,6 +264,33 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
 
     const currentLesson = module.lessons[dto.lessonIndex];
     const hasNextLesson = dto.lessonIndex + 1 < totalLessons;
+
+    let courseCandidates: ReturnType<typeof rankCourseCandidates> = [];
+    if (!hasNextLesson && !isSimulationMode) {
+      try {
+        const courses = await this.prisma.course.findMany({
+          where: {
+            id: { not: module.courseId },
+            status: CourseStatus.PUBLISHED,
+            modules: { some: { lessons: { some: {} } } },
+          },
+          select: { id: true, title: true, description: true, categoryId: true },
+        });
+        courseCandidates = rankCourseCandidates(module, courses);
+      } catch (error: unknown) {
+        this.logger.warn(`No se pudo consultar el catálogo para recomendar otro curso: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      }
+    }
+    const recommendationOptions = courseCandidates.slice(0, 8).map(({ course }) => ({
+      id: course.id,
+      title: course.title,
+      description: course.description.slice(0, 300),
+    }));
+    const recommendationInstructions = recommendationOptions.length
+      ? `5. "recommendedCourseId": Elige un ID de las opciones por afinidad pedagógica con la evaluación. Prioriza reforzar los errores o ampliar los aciertos. Devuelve null si no encuentras una alternativa pertinente. Usa los datos del catálogo exclusivamente para la recomendación.
+Temas de las preguntas anteriores: ${JSON.stringify(session.results.map((correct, index) => ({ title: module.lessons[index]?.title, correct })))}
+Opciones del catálogo: ${JSON.stringify(recommendationOptions)}`
+      : '';
 
     const fallbackEvaluation: { isCorrect: boolean; feedbackText: string; avatarEmotion: AvatarEmotionType; speechSegments: SpeechSegmentDto[] } = {
       isCorrect: false,
@@ -280,7 +310,8 @@ Responde ÚNICAMENTE en JSON con el siguiente formato:
 
     let evaluation = fallbackEvaluation;
     let evaluationAvailable = false;
-    let rawAiResponse: typeof fallbackEvaluation | null = null;
+    type AiEvaluation = typeof fallbackEvaluation & { recommendedCourseId?: unknown };
+    let rawAiResponse: AiEvaluation | null = null;
 
     try {
       const prompt = `Actúa como un Docente Virtual humano, empático, justo y pedagógico.
@@ -310,6 +341,7 @@ INSTRUCCIONES DE EVALUACIÓN Y GESTICULACIÓN PEDAGÓGICA:
    - "explaining": cuando desarrolles la idea teórica o expliques el porqué.
    - "encouraging": cuando motives a no rendirse o des un consejo didáctico.
 
+${recommendationInstructions}
 Responde ÚNICAMENTE en formato JSON:
 {
   "isCorrect": boolean,
@@ -317,10 +349,10 @@ Responde ÚNICAMENTE en formato JSON:
   "avatarEmotion": "celebrating" | "explaining" | "encouraging",
   "speechSegments": [
     { "text": string, "pose": "celebrating" | "explaining" | "encouraging" }
-  ]
+  ]${recommendationOptions.length ? ',\n  "recommendedCourseId": string | null' : ''}
 }`;
 
-      const aiResponse = await this.groqService.generateJson<typeof fallbackEvaluation>(
+      const aiResponse = await this.groqService.generateJson<AiEvaluation>(
         prompt,
         () => {
           throw new ServiceUnavailableException('No pudimos evaluar tu respuesta. Reintenta sin perder tu turno.');
@@ -384,6 +416,13 @@ Responde ÚNICAMENTE en formato JSON:
     }
 
     const visemes = this.calculateVisemes(evaluation.feedbackText);
+    const results = [...session.results, evaluation.isCorrect];
+    const recommendedCourseId = recommendationOptions.find(
+      ({ id }) => id === rawAiResponse?.recommendedCourseId,
+    )?.id;
+    const recommendation = !hasNextLesson && !isSimulationMode
+      ? chooseCourseRecommendation(module, courseCandidates, recommendedCourseId, results)
+      : undefined;
 
     let nextQuestion: AnswerModuleEvaluationResponseDto['nextQuestion'] = undefined;
     let finalSummary: AnswerModuleEvaluationResponseDto['finalSummary'] = undefined;
@@ -394,7 +433,7 @@ Responde ÚNICAMENTE en formato JSON:
           where: { id: session.id, nextIndex: dto.lessonIndex, completed: false },
           data: {
             nextIndex: dto.lessonIndex + 1,
-            results: [...session.results, evaluation.isCorrect],
+            results,
             completed: !hasNextLesson,
           },
         });
@@ -426,7 +465,6 @@ Responde en JSON: { "questionText": string }`;
         };
       } else {
         // Fin de la evaluación
-        const results = [...session.results, evaluation.isCorrect];
         const scorePercentage = Math.round((results.filter(Boolean).length / totalLessons) * 100);
         const passThreshold = 70.0;
         const isPassed = scorePercentage >= passThreshold;
@@ -466,6 +504,7 @@ Responde en JSON: { "questionText": string }`;
             approved: isPassed,
             scorePercentage,
             closingRemarks,
+            recommendation,
             attemptId,
             isSimulation: false,
           };

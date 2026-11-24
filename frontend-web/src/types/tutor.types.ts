@@ -50,6 +50,11 @@ export interface FinalEvaluationSummary {
   correctAnswersCount?: number;
   totalQuestions?: number;
   closingRemarks: string;
+  recommendation?: {
+    courseId: string;
+    courseTitle: string;
+    reason: string;
+  } | null;
   attemptId?: string;
   isSimulation?: boolean;
 }

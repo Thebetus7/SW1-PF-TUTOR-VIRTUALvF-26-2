@@ -821,8 +821,36 @@ export const VirtualTutorEvaluatorModal: React.FC<
                   {finalSummary.scorePercentage}%
                 </strong>
                 <p>{finalSummary.closingRemarks}</p>
+                {!isSimulation && !finalSummary.isSimulation && (
+                  <section className="tutor-result-recommendation" aria-labelledby="tutor-recommendation-heading">
+                    <h4 id="tutor-recommendation-heading">Qué estudiar después</h4>
+                    {finalSummary.recommendation ? (
+                      <>
+                        <strong>{finalSummary.recommendation.courseTitle}</strong>
+                        <p>{finalSummary.recommendation.reason}</p>
+                      </>
+                    ) : (
+                      <p>Encuentra otra materia en el catálogo.</p>
+                    )}
+                    <a
+                      className="btn-primary"
+                      href={finalSummary.recommendation
+                        ? `#/courses/${encodeURIComponent(finalSummary.recommendation.courseId)}`
+                        : "#/courses"}
+                      onClick={(event) => {
+                        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                        event.preventDefault();
+                        const destination = event.currentTarget.hash;
+                        onClose();
+                        window.location.hash = destination;
+                      }}
+                    >
+                      {finalSummary.recommendation ? "Ver curso" : "Explorar catálogo"}
+                    </a>
+                  </section>
+                )}
                 <button
-                  className="btn-primary"
+                  className={isSimulation || finalSummary.isSimulation ? "btn-primary" : "btn-secondary"}
                   onClick={() => {
                     onFinish?.(finalSummary);
                     onClose();
